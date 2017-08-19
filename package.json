@@ -1,0 +1,44 @@
+{
+  "name": "beight-core",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "author": "Christian Ruigrok",
+  "license": "ISC",
+  "dependencies": {
+    "bufferutil": "^3.0.2",
+    "chalk": "^2.1.0",
+    "dotenv": "^4.0.0",
+    "kcors": "^2.2.1",
+    "koa": "^2.3.0",
+    "koa-router": "^7.2.1",
+    "utf-8-validate": "^3.0.3",
+    "uuid": "^3.1.0",
+    "uws": "^8.14.1",
+    "ws": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/chalk": "^0.4.31",
+    "@types/dotenv": "^4.0.0",
+    "@types/koa": "^2.0.39",
+    "@types/koa-router": "^7.0.22",
+    "@types/node": "^8.0.17",
+    "babel-cli": "^6.24.1",
+    "babel-loader": "^7.1.1",
+    "babel-plugin-module-resolver": "^2.7.1",
+    "babel-plugin-transform-object-rest-spread": "^6.23.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.6.0",
+    "fast-async": "^6.3.0",
+    "nodemon": "^1.11.0",
+    "ts-loader": "^2.3.3",
+    "typescript": "^2.5.0",
+    "webpack": "^3.5.5"
+  },
+  "scripts": {
+    "build": "NODE_ENV=production webpack -p --colors --progress",
+    "watch": "NODE_ENV=development webpack --hot --watch --colors --progress",
+    "dev": "npm run watch",
+    "prod": "npm run build"
+  }
+}

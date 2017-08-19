@@ -1,0 +1,18 @@
+{
+  "presets": [["env", { "modules": false, "loose": true }]],
+  "plugins": [
+    "transform-object-rest-spread",
+    "fast-async",
+    [
+      "module-resolver",
+      {
+        "root": ["./src"],
+        "alias": {
+          "@": "./",
+          "components": "./components",
+          "services": "./services"
+        }
+      }
+    ]
+  ]
+}
