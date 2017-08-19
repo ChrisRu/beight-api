@@ -1,6 +1,6 @@
 import Koa from 'koa';
 import cors from 'kcors';
-import logger from '../services/logger';
+import logger from '@/services/logger';
 
 const app = new Koa();
 const port = process.env.SERVER_PORT || 8080;

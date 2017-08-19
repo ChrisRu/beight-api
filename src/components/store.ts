@@ -1,6 +1,6 @@
-import logger from '../services/logger';
-import { message } from '../components/ws';
-import { parseEdit, getCharacters } from '../services/util';
+import logger from '@/services/logger';
+import { message } from '@/components/ws';
+import { parseEdit, getCharacters } from '@/services/util';
 
 export interface stream {
   changes: message[];

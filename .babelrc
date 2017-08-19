@@ -6,11 +6,8 @@
     [
       "module-resolver",
       {
-        "root": ["./src"],
         "alias": {
-          "@": "./",
-          "components": "./components",
-          "services": "./services"
+          "@": "./src"
         }
       }
     ]

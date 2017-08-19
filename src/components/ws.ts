@@ -1,9 +1,9 @@
 import http from 'http';
 import ws from 'ws';
 import uuid from 'uuid';
-import logger from '../services/logger';
-import app from './app';
-import Store from './store';
+import logger from '@/services/logger';
+import app from '@/components/app';
+import Store from '@/components/store';
 
 export interface message {
   type: string;
