@@ -3,7 +3,7 @@ import ws from 'ws';
 import uuid from 'uuid';
 import logger from '../services/logger';
 import app from './app';
-import Store from '../services/store';
+import Store from './store';
 
 export interface message {
   type: string;

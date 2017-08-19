@@ -1,6 +1,6 @@
-import logger from './logger';
+import logger from '../services/logger';
 import { message } from '../components/ws';
-import { parseEdit, getCharacters } from './util';
+import { parseEdit, getCharacters } from '../services/util';
 
 export interface stream {
   changes: message[];
@@ -61,7 +61,6 @@ export default class Store {
   addChange(stream: number, item: message): message {
     if (this.streams[stream]) {
       this.streams[stream].changes.push(item);
-      console.log(this.streams[item.stream]);
       this.setValue(item.stream, parseEdit(this.streams[item.stream].value, item.changes));
       return item;
     }
