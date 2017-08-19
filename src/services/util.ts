@@ -23,7 +23,7 @@ export interface EditOperation {
 export function parseEdit(value: string, changes: EditOperation[]): string {
   let newValue: string[] = [''];
   if (value) {
-    value.split('\n');
+    newValue = value.split('\n');
   }
 
   changes.forEach((change: EditOperation) => {
