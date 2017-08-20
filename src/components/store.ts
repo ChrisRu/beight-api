@@ -21,7 +21,7 @@ export default class Store {
     this.database.connect();
     this.database.query('SELECT * FROM streams').then(streams => {
       streams.rows.forEach(stream => {
-        this.streams[stream.id] = {
+        this.streams[stream.guid] = {
           changes: [],
           value: stream.value
         };
@@ -61,7 +61,7 @@ export default class Store {
     if (this.streams[stream]) {
       this.streams[stream].value = value;
       this.logStreamValue(stream);
-      this.database.query('UPDATE streams SET value = $1 WHERE id = $2', [value, stream]);
+      this.database.query('UPDATE streams SET value = $1 WHERE guid = $2', [value, stream]);
       return value;
     }
   }

@@ -20,8 +20,8 @@ export class Database {
     });
   }
 
-  connect() {
-    return this.pool.connect(async error => {
+  async connect(): Promise<any> {
+    return this.pool.connect(error => {
       if (error) {
         logger.error('database', `Can't connect to database: ${error}`);
         return;
@@ -30,47 +30,49 @@ export class Database {
       this.connected = true;
       logger.info('database', `Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`);
 
-      try {
-        const tableCount = await this.query(`SELECT to_regclass('${this.table}')`);
-        if (tableCount.rows[0].to_regclass === null) {
-          await this.createTable();
-        }
-      } catch (error) {
-        await this.createTable();
-      }
+      return this.query(`SELECT to_regclass('${this.table}')`)
+        .then(res => {
+          if (res.rows[0].to_regclass === null) {
+            return this.createTable();
+          }
+        })
+        .catch(error => {
+          return this.createTable();
+        });
     });
   }
 
-  async query(query: string, data?: any[]): Promise<any> {
-    if (data === undefined) {
-      data = null;
-    }
-
-    try {
-      return this.pool.query(query, data);
-    } catch (error) {
+  query(query: string, data?: any[]): Promise<any> {
+    return this.pool.query(query, data).catch(error => {
       logger.error('database', error);
-    }
+    });
   }
 
   dropTable(): Promise<any> {
     const query = 'DROP TABLE $1';
-    return this.query(query, [this.table]).then(() => {
-      logger.warn('database', `Dropped table ${this.table}`);
-    });
+    return this.query(query, [this.table])
+      .then(() => {
+        logger.warn('database', `Dropped table ${this.table}`);
+      })
+      .catch(error => {
+        logger.error('database', `Can't drop table: ${error}`);
+      });
   }
 
   createTable(): Promise<any> {
     const query = `CREATE TABLE ${this.table} (
-      id        serial   NOT NULL,
-      value     text     NOT NULL,
-
-      PRIMARY KEY(id)
+      id    serial PRIMARY KEY,
+      guid  UUID   UNIQUE DEFAULT uuid_generate_v4(),
+      value text   NOT NULL
     )`;
 
-    return this.query(query).then(() => {
-      logger.info('database', `Created table ${this.table}`);
-    });
+    return this.query(query)
+      .then(() => {
+        logger.info('database', `Created table ${this.table}`);
+      })
+      .catch(error => {
+        logger.error('database', `Can't create table: ${error}`);
+      });
   }
 }
 
