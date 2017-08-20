@@ -3,7 +3,7 @@ import cors from 'kcors';
 import logger from '@/services/logger';
 
 const app = new Koa();
-const port = process.env.SERVER_PORT || 8080;
+const port = process.env.SERVER_PORT;
 
 app
   .use(cors())

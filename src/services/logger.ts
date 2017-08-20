@@ -69,7 +69,7 @@ export class Logger {
         return 'red';
       case 'store':
         return 'blue';
-      case 'debug':
+      case 'database':
         return 'magenta';
       default:
         return 'white';

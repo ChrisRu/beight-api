@@ -13,16 +13,12 @@ export interface message {
   changes?: any;
 }
 
-export interface socket {
+declare class WebSocket extends ws {
   id: string;
   isAlive: boolean;
-  on: (type: string, callback: (message: string) => any) => void;
-  send: (value: string) => void;
-  terminate: () => void;
-  ping: (data: any, mask: boolean, failSilently: boolean) => void;
 }
 
-export class WebSocket {
+export class WebSocketServer {
   store: Store;
   server: http.Server;
   wss: ws.Server;
@@ -30,12 +26,12 @@ export class WebSocket {
 
   constructor() {
     this.store = new Store();
-    this.port = process.env.WEBSOCKET_PORT || 8081;
+    this.port = process.env.WEBSOCKET_PORT;
 
     this.server = http.createServer(app.callback());
     this.wss = new ws.Server({ server: this.server });
 
-    this.wss.on('connection', (socket: socket) => {
+    this.wss.on('connection', socket => {
       socket.id = uuid.v4();
       socket.isAlive = true;
 
@@ -64,21 +60,17 @@ export class WebSocket {
         }
       });
 
+      socket.on('close', () => {
+        this.store.removeConnection(socket.id);
+        logger.info('ws', `User ${socket.id} disconnected`);
+      });
+
       socket.on('pong', () => {
         socket.isAlive = true;
       });
     });
 
-    this.wss.on('close', (socket: socket) => {
-      this.store.removeConnection(socket.id);
-      logger.info('ws', `User ${socket.id} disconnected`);
-    });
-
     this.server.listen(this.port, () => {
-      Array(5).fill(0).forEach((item, index) => {
-        this.store.createStream(index);
-      });
-
       const interval = setInterval(() => {
         this.wss.clients.forEach(socket => {
           if (socket.isAlive === false) {
@@ -100,7 +92,7 @@ export class WebSocket {
    * @param streams Stream identifiers
    * @param socket Socket target
    */
-  sendStreamsValues (streams: number[], socket: socket): void {
+  sendStreamsValues(streams: number[], socket): void {
     this.store.streamIdentifiers.forEach(stream => {
       if (streams.includes(stream)) {
         this.sendValue(stream, socket, null);
@@ -113,7 +105,7 @@ export class WebSocket {
    * @param stream Stream identifier
    * @param socket Socket target
    */
-  sendValue(stream: number, socket: socket, value?: any): void {
+  sendValue(stream: number, socket, value?: any): void {
     let message = value;
     if (!message) {
       message = {
@@ -141,7 +133,7 @@ export class WebSocket {
       ...message
     });
 
-    this.wss.clients.forEach((socket: socket) => {
+    this.wss.clients.forEach(socket => {
       const streams: number[] = this.store.connections[socket.id] || [];
       if (streams.includes(message.stream) && socket.id !== item.socketOrigin) {
         this.sendValue(message.stream, socket, item);
@@ -151,4 +143,4 @@ export class WebSocket {
   }
 }
 
-export default new WebSocket();
+export default new WebSocketServer();
