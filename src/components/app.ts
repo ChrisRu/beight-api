@@ -1,5 +1,6 @@
 import Koa from 'koa';
 import cors from 'kcors';
+import json from 'koa-json';
 import Logger from '@/services/logger';
 
 const app = new Koa();
@@ -8,6 +9,7 @@ const logger = new Logger('router');
 
 app
   .use(cors())
+  .use(json())
   .use(async (ctx, next) => {
     const start = Date.now();
     await next();

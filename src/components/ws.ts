@@ -8,8 +8,8 @@ import Store from '@/components/store';
 export interface message {
   type: string;
   socketOrigin: string;
-  stream?: number;
-  streams?: number[];
+  stream?: string;
+  streams?: string[];
   changes?: any;
 }
 
@@ -94,7 +94,9 @@ export class WebSocketServer {
    * @param streams Stream identifiers
    * @param socket Socket target
    */
-  sendStreamsValues(streams: number[], socket): void {
+  sendStreamsValues(streams: string[], socket): void {
+    console.log(this.store.streamIdentifiers);
+    console.log(streams);
     this.store.streamIdentifiers.forEach(stream => {
       if (streams.includes(stream)) {
         this.sendValue(stream, socket, null);
@@ -107,7 +109,7 @@ export class WebSocketServer {
    * @param stream Stream identifier
    * @param socket Socket target
    */
-  sendValue(stream: number, socket, value?: any): void {
+  sendValue(stream: string, socket, value?: any): void {
     let message = value;
     if (!message) {
       message = {
@@ -136,7 +138,7 @@ export class WebSocketServer {
     });
 
     this.wss.clients.forEach(socket => {
-      const streams: number[] = this.store.connections[socket.id] || [];
+      const streams: string[] = this.store.connections[socket.id] || [];
       if (streams.includes(message.stream) && socket.id !== item.socketOrigin) {
         this.sendValue(message.stream, socket, item);
         this.logger.info(`Sent stream ${message.stream} value from ${id} to ${item.socketOrigin}`);

@@ -9,8 +9,8 @@ export interface stream {
 }
 
 export default class Store {
-  streams: { [id: number]: stream };
-  connections: { [id: string]: number[] };
+  streams: { [id: string]: stream };
+  connections: { [id: string]: string[] };
   database: Database;
   logger: Logger;
 
@@ -37,7 +37,7 @@ export default class Store {
    * @param items Streams to listen to
    * @returns Streams to listen to
    */
-  addConnection(id: string, items: number[]): number[] {
+  addConnection(id: string, items: string[]): string[] {
     this.connections[id] = items.filter(item => this.streams[item]);
     this.logger.info(`User ${id} subscribed to streams: ${this.connections[id].join(', ')}`);
     return this.connections[id];
@@ -59,7 +59,7 @@ export default class Store {
    * @param value Stream value
    * @returns Stream value
    */
-  setValue(stream: number, value: string): string {
+  setValue(stream: string, value: string): string {
     if (this.streams[stream]) {
       this.streams[stream].value = value;
       this.logStreamValue(stream);
@@ -74,7 +74,7 @@ export default class Store {
    * @param item Change object
    * @returns Change object
    */
-  addChange(stream: number, item: message): message {
+  addChange(stream: string, item: message): message {
     if (this.streams[stream]) {
       this.streams[stream].changes.push(item);
       this.setValue(item.stream, parseEdit(this.streams[item.stream].value, item.changes));
@@ -86,15 +86,15 @@ export default class Store {
    * Create a new stream
    * @returns Stream identifier
    */
-  async createStream(): Promise<number> {
-    const answer = await this.database.query(`INSERT INTO streams(value) VALUES('') RETURNING id`);
-    const { id } = answer.rows[0];
-    this.streams[id] = {
+  async createStream(): Promise<string> {
+    const answer = await this.database.query(`INSERT INTO streams(value) VALUES('') RETURNING guid`);
+    const { guid } = answer.rows[0];
+    this.streams[guid] = {
       changes: [],
       value: ''
     };
-    this.logger.info(`Stream ${id} created`);
-    return id;
+    this.logger.info(`Stream ${guid} created`);
+    return guid;
   }
 
   /**
@@ -102,7 +102,7 @@ export default class Store {
    * @param stream Stream identifier
    * @returns Change identifier
    */
-  nextId(stream: number): number {
+  nextId(stream: string): number {
     if (this.streams[stream].value) {
       return this.streams[stream].value.length + 1;
     } else {
@@ -114,15 +114,15 @@ export default class Store {
    * Get all stream identifiers
    * @returns Stream identifiers
    */
-  get streamIdentifiers(): number[] {
-    return Object.keys(this.streams).map(key => parseInt(key, 10));
+  get streamIdentifiers(): string[] {
+    return Object.keys(this.streams).map(key => key);
   }
 
   /**
    * Log the new stream value
    * @param stream Stream identifier
    */
-  private logStreamValue(stream: number): void {
+  private logStreamValue(stream: string): void {
     this.logger.info(`Stream ${stream} updated to value: ${getCharacters(10)} ${this.streams[stream].value}`);
   }
 }
