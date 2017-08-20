@@ -4,10 +4,10 @@ import app from '@/components/app';
 const router = new Router();
 
 router
-  .get('/', (ctx) => {
+  .get('/', ctx => {
     ctx.body = 'Hello world!';
   })
-  .get('/hey', (ctx) => {
+  .get('/hey', ctx => {
     ctx.body = 'oy';
   });
 

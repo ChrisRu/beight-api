@@ -1,31 +1,70 @@
 import chalk from 'chalk';
 
 export class Logger {
+  title: string;
+
+  constructor(type) {
+    this.title = Logger.chalkTitle(type);
+  }
+
   /**
    * Show an info log
-   * @param title Origin of log message
    * @param message Log message
    */
-  info(title: string, message: string): void {
-    this.log(title, message, 'info');
+  info(message: string): void {
+    this.log(message, 'info');
+  }
+
+  /**
+   * Show an info log
+   * @param title Log title
+   * @param message Log message
+   */
+  static info(title: string, message: string): void {
+    Logger.log(title, message, 'info');
   }
 
   /**
    * Show a warning log
-   * @param title Origin of log message
    * @param message Log message
    */
-  warn(title: string, message: string): void {
-    this.log(title, message, 'warn');
+  warn(message: string): void {
+    this.log(message, 'warn');
+  }
+
+  /**
+   * Show a warning log
+   * @param title Log title
+   * @param message Log message
+   */
+  static warn(title: string, message: string): void {
+    Logger.log(title, message, 'warn');
   }
 
   /**
    * Show an error log
-   * @param title Origin of log message
    * @param message Log message
    */
-  error(title: string, message: string): void {
-    this.log(title, message, 'error');
+  error(message: string): void {
+    this.log(message, 'error');
+  }
+
+  /**
+   * Show an error log
+   * @param title Log title
+   * @param message Log message
+   */
+  static error(title: string, message: string): void {
+    Logger.log(title, message, 'error');
+  }
+
+  /**
+   * Print the message
+   * @param message Message of the log
+   * @param type Type of the log
+   */
+  private log(message: string, type = 'info'): void {
+    console.log(`${Logger.getTime()} [${this.title}] ${Logger.chalkMessage(type, message)}`);
   }
 
   /**
@@ -34,8 +73,8 @@ export class Logger {
    * @param message Message of the log
    * @param type Type of the log
    */
-  private log(title: string, message: string, type = 'info'): void {
-    console.log(`${this.getTime()} [${this.chalkTitle(title)}] ${this.chalkMessage(type, message)}`);
+  private static log(title: string, message: string, type = 'info'): void {
+    console.log(`${this.getTime()} [${Logger.chalkTitle(title)}] ${this.chalkMessage(type, message)}`);
   }
 
   /**
@@ -43,7 +82,7 @@ export class Logger {
    * @param type Type of log message
    * @returns Color name
    */
-  private getColorType(type: string): string {
+  private static getColorType(type: string): string {
     switch (type) {
       case 'warn':
         return 'yellow';
@@ -59,13 +98,13 @@ export class Logger {
    * @param title Origin of log message
    * @returns Color name
    */
-  private getColorTitle(title: string): string {
+  private static getColorTitle(title: string): string {
     switch (title) {
       case 'server':
         return 'green';
       case 'router':
         return 'yellow';
-      case 'ws':
+      case 'websocket':
         return 'red';
       case 'store':
         return 'blue';
@@ -80,7 +119,7 @@ export class Logger {
    * Get the current time
    * @returns Time in HH:MM:SS format
    */
-  private getTime(): string {
+  private static getTime(): string {
     const options = {
       hour: '2-digit',
       minute: '2-digit',
@@ -94,8 +133,8 @@ export class Logger {
    * @param title Title of the log
    * @returns Title with color
    */
-  private chalkTitle(title: string): string {
-    const coloredTitle = this.getColorTitle(title);
+  private static chalkTitle(title: string): string {
+    const coloredTitle = Logger.getColorTitle(title);
     return chalk[coloredTitle](title);
   }
 
@@ -105,10 +144,10 @@ export class Logger {
    * @param message Message of the log
    * @returns Message with color
    */
-  private chalkMessage(type: string, message: string): string {
-    const coloredType = this.getColorType(type);
+  private static chalkMessage(type: string, message: string): string {
+    const coloredType = Logger.getColorType(type);
     return chalk[coloredType](message);
   }
 }
 
-export default new Logger();
+export default Logger;

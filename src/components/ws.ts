@@ -1,7 +1,7 @@
 import http from 'http';
 import ws from 'ws';
 import uuid from 'uuid';
-import logger from '@/services/logger';
+import Logger from '@/services/logger';
 import app from '@/components/app';
 import Store from '@/components/store';
 
@@ -23,10 +23,12 @@ export class WebSocketServer {
   server: http.Server;
   wss: ws.Server;
   port: string | number;
+  logger: Logger;
 
   constructor() {
     this.store = new Store();
     this.port = process.env.WEBSOCKET_PORT;
+    this.logger = new Logger('websocket');
 
     this.server = http.createServer(app.callback());
     this.wss = new ws.Server({ server: this.server });
@@ -35,7 +37,7 @@ export class WebSocketServer {
       socket.id = uuid.v4();
       socket.isAlive = true;
 
-      logger.info('ws', `User ${socket.id} connected`);
+      this.logger.info(`User ${socket.id} connected`);
 
       socket.on('message', (message: string) => {
         const data: message = {
@@ -55,14 +57,14 @@ export class WebSocketServer {
             this.updateStreamValue(socket.id, data);
             break;
           default:
-            logger.warn('ws', `User ${socket.id} sent message with unknown type ${data.type}`);
+            this.logger.warn(`User ${socket.id} sent message with unknown type ${data.type}`);
             break;
         }
       });
 
       socket.on('close', () => {
         this.store.removeConnection(socket.id);
-        logger.info('ws', `User ${socket.id} disconnected`);
+        this.logger.info(`User ${socket.id} disconnected`);
       });
 
       socket.on('pong', () => {
@@ -75,7 +77,7 @@ export class WebSocketServer {
         this.wss.clients.forEach(socket => {
           if (socket.isAlive === false) {
             this.store.removeConnection(socket.id);
-            logger.warn('ws', `Lost connection to user ${socket.id}`);
+            this.logger.warn(`Lost connection to user ${socket.id}`);
             return socket.terminate();
           }
           socket.isAlive = false;
@@ -83,7 +85,7 @@ export class WebSocketServer {
         });
       }, 30000);
 
-      logger.info('ws', `Started on ws://localhost:${this.port}`);
+      this.logger.info(`Started on ws://localhost:${this.port}`);
     });
   }
 
@@ -137,7 +139,7 @@ export class WebSocketServer {
       const streams: number[] = this.store.connections[socket.id] || [];
       if (streams.includes(message.stream) && socket.id !== item.socketOrigin) {
         this.sendValue(message.stream, socket, item);
-        logger.info('ws', `Sent stream ${message.stream} value from ${id} to ${item.socketOrigin}`);
+        this.logger.info(`Sent stream ${message.stream} value from ${id} to ${item.socketOrigin}`);
       }
     });
   }

@@ -1,4 +1,4 @@
-import logger from '@/services/logger';
+import Logger from '@/services/logger';
 import Database from '@/services/database';
 import { message } from '@/components/ws';
 import { parseEdit, getCharacters } from '@/services/util';
@@ -12,10 +12,12 @@ export default class Store {
   streams: { [id: number]: stream };
   connections: { [id: string]: number[] };
   database: Database;
+  logger: Logger;
 
   constructor() {
     this.streams = {};
     this.connections = {};
+    this.logger = new Logger('store');
 
     this.database = new Database('streams');
     this.database.connect();
@@ -37,7 +39,7 @@ export default class Store {
    */
   addConnection(id: string, items: number[]): number[] {
     this.connections[id] = items.filter(item => this.streams[item]);
-    logger.info('store', `User ${id} subscribed to streams: ${this.connections[id].join(', ')}`);
+    this.logger.info(`User ${id} subscribed to streams: ${this.connections[id].join(', ')}`);
     return this.connections[id];
   }
 
@@ -91,7 +93,7 @@ export default class Store {
       changes: [],
       value: ''
     };
-    logger.info('store', `Stream ${id} created`);
+    this.logger.info(`Stream ${id} created`);
     return id;
   }
 
@@ -121,10 +123,6 @@ export default class Store {
    * @param stream Stream identifier
    */
   private logStreamValue(stream: number): void {
-    logger.info(
-      'store',
-      `Stream ${stream} updated to value:
-      ${getCharacters(12)}${this.streams[stream].value}`
-    );
+    this.logger.info(`Stream ${stream} updated to value: ${getCharacters(10)} ${this.streams[stream].value}`);
   }
 }

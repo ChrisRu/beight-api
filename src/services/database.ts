@@ -1,10 +1,11 @@
-import logger from '@/services/logger';
+import Logger from '@/services/logger';
 import { Pool } from 'pg';
 
 export class Database {
   pool: Pool;
   connected: boolean;
   table: string;
+  logger: Logger;
 
   constructor(table: string) {
     this.connected = false;
@@ -18,17 +19,18 @@ export class Database {
       max: 20,
       idleTimeoutMillis: 30000
     });
+    this.logger = new Logger('database');
   }
 
   async connect(): Promise<any> {
     return this.pool.connect(error => {
       if (error) {
-        logger.error('database', `Can't connect to database: ${error}`);
+        this.logger.error(`Can't connect to database: ${error}`);
         return;
       }
 
       this.connected = true;
-      logger.info('database', `Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`);
+      this.logger.info(`Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`);
 
       return this.query(`SELECT to_regclass('${this.table}')`)
         .then(res => {
@@ -44,7 +46,7 @@ export class Database {
 
   query(query: string, data?: any[]): Promise<any> {
     return this.pool.query(query, data).catch(error => {
-      logger.error('database', error);
+      this.logger.error(error);
     });
   }
 
@@ -52,10 +54,10 @@ export class Database {
     const query = 'DROP TABLE $1';
     return this.query(query, [this.table])
       .then(() => {
-        logger.warn('database', `Dropped table ${this.table}`);
+        this.logger.warn(`Dropped table ${this.table}`);
       })
       .catch(error => {
-        logger.error('database', `Can't drop table: ${error}`);
+        this.logger.error(`Can't drop table: ${error}`);
       });
   }
 
@@ -68,10 +70,10 @@ export class Database {
 
     return this.query(query)
       .then(() => {
-        logger.info('database', `Created table ${this.table}`);
+        this.logger.info(`Created table ${this.table}`);
       })
       .catch(error => {
-        logger.error('database', `Can't create table: ${error}`);
+        this.logger.error(`Can't create table: ${error}`);
       });
   }
 }
