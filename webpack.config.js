@@ -1,4 +1,7 @@
 const path = require('path');
+const webpack = require('webpack');
+const nodeExternals = require('webpack-node-externals');
+
 const debug = process.env.NODE_ENV === 'development';
 
 const config = {
@@ -22,11 +25,19 @@ const config = {
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx']
-  }
+  },
+  externals: [nodeExternals()],
+  plugins: [
+    new webpack.BannerPlugin({
+      banner: 'require("source-map-support").install();',
+      raw: true,
+      entryOnly: false
+    })
+  ]
 };
 
 if (debug) {
-  config.devtool = '#inline-sourcemap';
+  config.devtool = '#eval-source-map';
 }
 
 module.exports = config;

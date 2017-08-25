@@ -1,5 +1,15 @@
 {
-  "presets": [["env", { "modules": false, "loose": true }]],
+  "presets": [
+    [
+      "env",
+      {
+        "targets": {
+          "node": "current"
+        },
+        "modules": false
+      }
+    ]
+  ],
   "plugins": [
     "transform-object-rest-spread",
     "fast-async",

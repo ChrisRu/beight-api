@@ -27,7 +27,6 @@
     "@types/koa-router": "^7.0.22",
     "@types/node": "^8.0.17",
     "@types/pg": "^6.1.43",
-    "@types/ws": "^3.0.2",
     "babel-cli": "^6.24.1",
     "babel-loader": "^7.1.1",
     "babel-plugin-module-resolver": "^2.7.1",
@@ -38,7 +37,8 @@
     "nodemon": "^1.11.0",
     "ts-loader": "^2.3.3",
     "typescript": "^2.5.0",
-    "webpack": "^3.5.5"
+    "webpack": "^3.5.5",
+    "webpack-node-externals": "^1.6.0"
   },
   "scripts": {
     "build": "NODE_ENV=production webpack -p --colors --progress",
