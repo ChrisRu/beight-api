@@ -44,12 +44,3 @@ export function parseEdit(value: string, changes: EditOperation[]): string {
 
   return newValue.join('\n');
 }
-
-/**
- * Get multiple characters
- * @param amount Character amount
- * @param character Character to multiply
- */
-export function getCharacters(amount: number, character: string = ' ') {
-  return Array(amount).join(character);
-}

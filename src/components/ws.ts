@@ -13,11 +13,6 @@ export interface message {
   changes?: any;
 }
 
-declare class WebSocket extends ws {
-  id: string;
-  isAlive: boolean;
-}
-
 export class WebSocketServer {
   store: Store;
   server: http.Server;

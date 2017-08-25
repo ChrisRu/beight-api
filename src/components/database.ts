@@ -4,12 +4,10 @@ import { Pool } from 'pg';
 export class Database {
   pool: Pool;
   connected: boolean;
-  table: string;
   logger: Logger;
 
-  constructor(table: string) {
+  constructor() {
     this.connected = false;
-    this.table = table;
     this.pool = new Pool({
       host: process.env.DATABASE_HOST,
       user: process.env.DATABASE_USERNAME,
@@ -32,7 +30,7 @@ export class Database {
       this.connected = true;
       this.logger.info(`Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`);
 
-      return this.query(`SELECT to_regclass('${this.table}')`)
+      return this.query(`SELECT to_regclass('games')`)
         .then(res => {
           if (res.rows[0].to_regclass === null) {
             return this.createTable();
@@ -50,27 +48,64 @@ export class Database {
     });
   }
 
-  dropTable(): Promise<any> {
+  dropTable(table: string): Promise<any> {
     const query = 'DROP TABLE $1';
-    return this.query(query, [this.table])
+    return this.query(query, [table])
       .then(() => {
-        this.logger.warn(`Dropped table ${this.table}`);
+        this.logger.warn(`Dropped table ${table}`);
       })
       .catch(error => {
         this.logger.error(`Can't drop table: ${error}`);
       });
   }
 
-  createTable(): Promise<any> {
-    const query = `CREATE TABLE ${this.table} (
-      id    serial PRIMARY KEY,
-      guid  UUID   UNIQUE DEFAULT uuid_generate_v4(),
-      value text   NOT NULL
-    )`;
+  updateValue(game: number, stream: number, value: string): Promise<any> {
+    const query = `
+      INSERT INTO
+      streams(value)
+      VALUES($1)
+      WHERE game = $2
+      AND id = $3
+    `;
+
+    return this.query(query, [value, game, stream])
+      .catch(error => {
+        this.logger.error(`Can't update value: ${error}`);
+       });
+  }
+
+  createGame() : Promise<any> {
+    const query = `
+      CREATE TABLE games (
+        id   serial    PRIMARY KEY,
+        guid UUID      UNIQUE DEFAULT uuid_generate_v4(),
+        date timestamp NOT NULL DEFAULT NOW(),
+        name text,
+        type smallint  NOT NULL
+      )
+    `;
 
     return this.query(query)
       .then(() => {
-        this.logger.info(`Created table ${this.table}`);
+        this.logger.info(`Created table games`);
+      })
+      .catch(error => {
+        this.logger.error(`Can't create table: error`);
+      });
+  }
+
+  createTable(): Promise<any> {
+    const query = `
+      CREATE TABLE streams (
+        id    serial    PRIMARY KEY,
+        game  integer   NOT NULL REFERENCES games(id),
+        value text      NOT NULL
+      )
+    `;
+
+    return this.query(query)
+      .then(() => {
+        this.logger.info(`Created table streams`);
       })
       .catch(error => {
         this.logger.error(`Can't create table: ${error}`);
@@ -78,4 +113,4 @@ export class Database {
   }
 }
 
-export default Database;
+export default new Database();

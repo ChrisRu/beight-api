@@ -1,10 +1,8 @@
 import Router from 'koa-router';
 import app from '@/components/app';
-import Database from '@/services/database';
+import database from '@/components/database';
 
 const router = new Router();
-const database = new Database('streams');
-database.connect();
 
 router
   .get('/', ctx => {

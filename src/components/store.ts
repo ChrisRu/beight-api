@@ -1,7 +1,7 @@
 import Logger from '@/services/logger';
-import Database from '@/services/database';
+import database from '@/components/database';
 import { message } from '@/components/ws';
-import { parseEdit, getCharacters } from '@/services/util';
+import { parseEdit } from '@/services/util';
 
 export interface stream {
   changes: message[];
@@ -11,7 +11,6 @@ export interface stream {
 export default class Store {
   streams: { [id: string]: stream };
   connections: { [id: string]: string[] };
-  database: Database;
   logger: Logger;
 
   constructor() {
@@ -19,9 +18,8 @@ export default class Store {
     this.connections = {};
     this.logger = new Logger('store');
 
-    this.database = new Database('streams');
-    this.database.connect();
-    this.database.query('SELECT * FROM streams').then(streams => {
+    database.connect();
+    database.query('SELECT * FROM streams').then(streams => {
       streams.rows.forEach(stream => {
         this.streams[stream.guid] = {
           changes: [],
@@ -63,7 +61,7 @@ export default class Store {
     if (this.streams[stream]) {
       this.streams[stream].value = value;
       this.logStreamValue(stream);
-      this.database.query('UPDATE streams SET value = $1 WHERE guid = $2', [value, stream]);
+      database.query('UPDATE streams SET value = $1 WHERE guid = $2', [value, stream]);
       return value;
     }
   }
@@ -87,7 +85,7 @@ export default class Store {
    * @returns Stream identifier
    */
   async createStream(): Promise<string> {
-    const answer = await this.database.query(`INSERT INTO streams(value) VALUES('') RETURNING guid`);
+    const answer = await database.query(`INSERT INTO streams(value) VALUES('') RETURNING guid`);
     const { guid } = answer.rows[0];
     this.streams[guid] = {
       changes: [],
@@ -123,6 +121,6 @@ export default class Store {
    * @param stream Stream identifier
    */
   private logStreamValue(stream: string): void {
-    this.logger.info(`Stream ${stream} updated to value: ${getCharacters(10)} ${this.streams[stream].value}`);
+    this.logger.info(`Stream ${stream} updated to value: ${' '.repeat(10)} ${this.streams[stream].value}`);
   }
 }
