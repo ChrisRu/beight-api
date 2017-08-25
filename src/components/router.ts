@@ -1,4 +1,4 @@
-import Router from 'koa-router';
+import * as Router from 'koa-router';
 import app from '@/components/app';
 import database from '@/components/database';
 

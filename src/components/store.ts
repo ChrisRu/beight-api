@@ -36,7 +36,9 @@ export default class Store {
    * @returns Streams to listen to
    */
   addConnection(id: string, items: string[]): string[] {
-    this.connections[id] = items.filter(item => this.streams[item]);
+    this.connections[id] = items.filter(item => {
+      return typeof item === 'string' && this.streams[item];
+    });
     this.logger.info(`User ${id} subscribed to streams: ${this.connections[id].join(', ')}`);
     return this.connections[id];
   }
@@ -121,6 +123,6 @@ export default class Store {
    * @param stream Stream identifier
    */
   private logStreamValue(stream: string): void {
-    this.logger.info(`Stream ${stream} updated to value: ${' '.repeat(10)} ${this.streams[stream].value}`);
+    this.logger.info(`Stream ${stream} updated value`);
   }
 }

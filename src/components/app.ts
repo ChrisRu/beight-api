@@ -1,6 +1,6 @@
-import Koa from 'koa';
-import cors from 'kcors';
-import json from 'koa-json';
+import * as Koa from 'koa';
+import * as cors from 'kcors';
+import * as json from 'koa-json';
 import Logger from '@/services/logger';
 
 const app = new Koa();

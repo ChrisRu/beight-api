@@ -1,6 +1,6 @@
-import http from 'http';
-import ws from 'ws';
-import uuid from 'uuid';
+import * as http from 'http';
+import * as ws from 'ws';
+import * as uuid from 'uuid';
 import Logger from '@/services/logger';
 import app from '@/components/app';
 import Store from '@/components/store';
@@ -90,8 +90,6 @@ export class WebSocketServer {
    * @param socket Socket target
    */
   sendStreamsValues(streams: string[], socket): void {
-    console.log(this.store.streamIdentifiers);
-    console.log(streams);
     this.store.streamIdentifiers.forEach(stream => {
       if (streams.includes(stream)) {
         this.sendValue(stream, socket, null);
