@@ -1,5 +1,6 @@
 import Logger from '@/services/logger';
-import { Pool } from 'pg';
+import { Pool, QueryResult } from 'pg';
+import { generateUrl } from '@/services/util';
 
 export class Database {
   pool: Pool;
@@ -21,24 +22,17 @@ export class Database {
   }
 
   async connect(): Promise<any> {
-    return this.pool.connect(error => {
+    return this.pool.connect(async error => {
       if (error) {
         this.logger.error(`Can't connect to database: ${error}`);
+        setTimeout(this.connect, 3000);
         return;
       }
 
       this.connected = true;
       this.logger.info(`Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`);
 
-      return this.query(`SELECT to_regclass('games')`)
-        .then(res => {
-          if (res.rows[0].to_regclass === null) {
-            return this.createTable();
-          }
-        })
-        .catch(error => {
-          return this.createTable();
-        });
+      await this.createTables(['Game', 'Stream', 'Account']);
     });
   }
 
@@ -49,8 +43,8 @@ export class Database {
   }
 
   dropTable(table: string): Promise<any> {
-    const query = 'DROP TABLE $1';
-    return this.query(query, [table])
+    const query = `DROP TABLE ${table}`;
+    return this.query(query)
       .then(() => {
         this.logger.warn(`Dropped table ${table}`);
       })
@@ -62,54 +56,116 @@ export class Database {
   updateValue(game: number, stream: number, value: string): Promise<any> {
     const query = `
       INSERT INTO
-      streams(value)
-      VALUES($1)
-      WHERE game = $2
-      AND id = $3
+        stream(value)
+        VALUES($1)
+        WHERE game = $2
+        AND id = $3
     `;
 
-    return this.query(query, [value, game, stream])
-      .catch(error => {
-        this.logger.error(`Can't update value: ${error}`);
-       });
+    return this.query(query, [value, game, stream]).catch(error => {
+      this.logger.error(`Can't update value: ${error}`);
+    });
   }
 
-  createGame() : Promise<any> {
+  async createTables(tables: string[]): Promise<Promise<any>[]> {
+    return Promise.all(
+      tables.map(table =>
+        this.query(`SELECT to_regclass('${table}')`)
+          .then(res => {
+            if (res.rows[0].to_regclass === null) {
+              return this[`create${table}Table`]();
+            }
+          })
+          .catch(error => {
+            this.logger.error(`Can't execute query: ${error}`);
+          })
+      )
+    );
+  }
+
+  createAccountTable(): Promise<any> {
     const query = `
-      CREATE TABLE games (
-        id   serial    PRIMARY KEY,
-        guid UUID      UNIQUE DEFAULT uuid_generate_v4(),
-        date timestamp NOT NULL DEFAULT NOW(),
-        name text,
-        type smallint  NOT NULL
+      CREATE TABLE account (
+        id        serial    PRIMARY KEY,
+        username  text      UNIQUE NOT NULL,
+        password  text      NOT NULL,
+        date      timestamp NOT NULL DEFAULT NOW()
       )
     `;
 
     return this.query(query)
       .then(() => {
-        this.logger.info(`Created table games`);
-      })
-      .catch(error => {
-        this.logger.error(`Can't create table: error`);
-      });
-  }
-
-  createTable(): Promise<any> {
-    const query = `
-      CREATE TABLE streams (
-        id    serial    PRIMARY KEY,
-        game  integer   NOT NULL REFERENCES games(id),
-        value text      NOT NULL
-      )
-    `;
-
-    return this.query(query)
-      .then(() => {
-        this.logger.info(`Created table streams`);
+        this.logger.info(`Created table 'account' for users`);
       })
       .catch(error => {
         this.logger.error(`Can't create table: ${error}`);
       });
+  }
+
+  createGameTable(): Promise<any> {
+    const query = `
+      CREATE TABLE game (
+        id   serial    PRIMARY KEY,
+        guid text      UNIQUE NOT NULL,
+        date timestamp NOT NULL DEFAULT NOW()
+      )
+    `;
+
+    return this.query(query)
+      .then(() => {
+        this.logger.info(`Created table 'game' for games`);
+      })
+      .catch(error => {
+        this.logger.error(`Can't create table: ${error}`);
+      });
+  }
+
+  createStreamTable(): Promise<any> {
+    const query = `
+      CREATE TABLE stream (
+        id        serial    PRIMARY KEY,
+        game      integer   NOT NULL REFERENCES game(id),
+        language  integer   NOT NULL,
+        active    boolean   NOT NULL DEFAULT FALSE,
+        value     text      NOT NULL
+      )
+    `;
+
+    return this.query(query)
+      .then(() => {
+        this.logger.info(`Created table 'stream' for streams`);
+      })
+      .catch(error => {
+        this.logger.error(`Can't create table: ${error}`);
+      });
+  }
+
+  getGames(): Promise<void | object[]> {
+    const gameQuery = 'SELECT id, guid FROM game ORDER BY date';
+    const streamQuery = 'SELECT id, language, active, value FROM stream WHERE game = $1';
+
+    return this.query(gameQuery)
+      .then(data =>
+        Promise.all(
+          data.rows.map(async game => ({
+            guid: game.guid,
+            streams: (await this.query(streamQuery, [game.id])).rows
+          }))
+        )
+      )
+      .catch(error => {
+        this.logger.error(`Can't get games ${error}`);
+      });
+  }
+
+  async getUnusedGuid(): Promise<string> {
+    const url = generateUrl(6);
+    return this.query(`SELECT guid FROM game WHERE guid = $1`, [url]).then(data => {
+      if (data.rows.length === 0) {
+        return url;
+      }
+      return this.getUnusedGuid();
+    });
   }
 }
 

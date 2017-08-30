@@ -1,14 +1,18 @@
+import * as bcrypt from 'bcrypt';
 import Logger from '@/services/logger';
 import database from '@/components/database';
 import { message } from '@/components/ws';
 import { parseEdit } from '@/services/util';
+import globals from '@/services/globals';
 
 export interface stream {
   changes: message[];
   value: string;
+  language: number;
+  active: boolean;
 }
 
-export default class Store {
+export class Store {
   streams: { [id: string]: stream };
   connections: { [id: string]: string[] };
   logger: Logger;
@@ -19,11 +23,13 @@ export default class Store {
     this.logger = new Logger('store');
 
     database.connect();
-    database.query('SELECT * FROM streams').then(streams => {
+    database.query('SELECT * FROM stream').then(streams => {
       streams.rows.forEach(stream => {
-        this.streams[stream.guid] = {
+        this.streams[stream.id] = {
           changes: [],
-          value: stream.value
+          value: stream.value,
+          active: stream.active,
+          language: stream.language
         };
       });
     });
@@ -63,7 +69,7 @@ export default class Store {
     if (this.streams[stream]) {
       this.streams[stream].value = value;
       this.logStreamValue(stream);
-      database.query('UPDATE streams SET value = $1 WHERE guid = $2', [value, stream]);
+      database.query('UPDATE stream SET value = $1 WHERE guid = $2', [value, stream]);
       return value;
     }
   }
@@ -83,18 +89,86 @@ export default class Store {
   }
 
   /**
+   * Create a new game
+   * @param values Stream create data
+   */
+  async createGame(values): Promise<any> {
+    const url = await database.getUnusedGuid();
+
+    const answer = await database
+      .query(`INSERT INTO game(guid) VALUES($1) RETURNING id, guid`, [url])
+      .then(data => {
+        this.logger.info(`Created game ${url}`);
+        return data;
+      })
+      .catch(error => {
+        this.logger.error(`Can't create game ${url}: ${error}`);
+      });
+
+    const { id, guid } = answer.rows[0];
+    return Promise.all(values.map(value => this.createStream(id, guid, value.language, value.active, value.content)));
+  }
+
+  /**
    * Create a new stream
+   * @param gameId Game identifier
+   * @param gameGuid Game guid
+   * @param language Language identifier
+   * @param active Stream is being played
+   * @param value Initial stream value
    * @returns Stream identifier
    */
-  async createStream(): Promise<string> {
-    const answer = await database.query(`INSERT INTO streams(value) VALUES('') RETURNING guid`);
-    const { guid } = answer.rows[0];
-    this.streams[guid] = {
+  async createStream(
+    gameId: number,
+    gameGuid: string,
+    language: number,
+    active: boolean,
+    value: string
+  ): Promise<string> {
+    const answer = await database.query(
+      `
+      INSERT INTO
+        stream(game, language, active, value)
+        VALUES($1, $2, $3, $4)
+      RETURNING id
+    `,
+      [gameId, language, active, value]
+    );
+
+    const { id } = answer.rows[0];
+    this.streams[id] = {
       changes: [],
-      value: ''
+      value,
+      language,
+      active
     };
-    this.logger.info(`Stream ${guid} created`);
-    return guid;
+    this.logger.info(`Stream ${id} for game ${gameGuid} created`);
+    return gameGuid;
+  }
+
+  async createUser(username, password) {
+    if (!username || !password) {
+      this.logger.error('No username or password supplied for user create');
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10).catch(error => {
+      this.logger.error(`Can't hash password: ${error}`);
+    });
+
+    console.log(username, hashedPassword);
+    return database
+      .query(
+        `
+      INSERT INTO
+        account(username, password)
+        VALUES($1, $2)
+    `,
+        [username, hashedPassword]
+      )
+      .catch(e => {
+        console.error(e);
+      });
   }
 
   /**
@@ -126,3 +200,5 @@ export default class Store {
     this.logger.info(`Stream ${stream} updated value`);
   }
 }
+
+export default new Store();

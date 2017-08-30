@@ -20,11 +20,15 @@ const config = {
       {
         test: /\.tsx?$/,
         use: ['babel-loader', 'ts-loader']
+      },
+      {
+        test: /\.json$/,
+        use: 'json-loader'
       }
     ]
   },
   resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.jsx']
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json']
   },
   externals: [nodeExternals()],
   plugins: [

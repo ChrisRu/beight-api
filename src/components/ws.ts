@@ -3,7 +3,7 @@ import * as ws from 'ws';
 import * as uuid from 'uuid';
 import Logger from '@/services/logger';
 import app from '@/components/app';
-import Store from '@/components/store';
+import store from '@/components/store';
 
 export interface message {
   type: string;
@@ -14,14 +14,12 @@ export interface message {
 }
 
 export class WebSocketServer {
-  store: Store;
   server: http.Server;
   wss: ws.Server;
   port: string | number;
   logger: Logger;
 
   constructor() {
-    this.store = new Store();
     this.port = process.env.WEBSOCKET_PORT;
     this.logger = new Logger('websocket');
 
@@ -35,8 +33,15 @@ export class WebSocketServer {
       this.logger.info(`User ${socket.id} connected`);
 
       socket.on('message', (message: string) => {
+        let parsedMessage;
+        try {
+          parsedMessage = JSON.parse(message);
+        } catch (error) {
+          this.logger.error(`Can't parse socket message from ${socket.id}`);
+        }
+
         const data: message = {
-          ...JSON.parse(message),
+          ...parsedMessage,
           socketOrigin: socket.id
         };
 
@@ -45,20 +50,20 @@ export class WebSocketServer {
             this.sendValue(data.stream, socket, null);
             break;
           case 'info':
-            this.store.addConnection(socket.id, data.streams);
+            store.addConnection(socket.id, data.streams);
             this.sendStreamsValues(data.streams, socket);
             break;
           case 'update':
             this.updateStreamValue(socket.id, data);
             break;
           default:
-            this.logger.warn(`User ${socket.id} sent message with unknown type ${data.type}`);
+            this.logger.warn(`User ${socket.id} sent message with unknown type ${data.type.toString()}`);
             break;
         }
       });
 
       socket.on('close', () => {
-        this.store.removeConnection(socket.id);
+        store.removeConnection(socket.id);
         this.logger.info(`User ${socket.id} disconnected`);
       });
 
@@ -71,7 +76,7 @@ export class WebSocketServer {
       const interval = setInterval(() => {
         this.wss.clients.forEach(socket => {
           if (socket.isAlive === false) {
-            this.store.removeConnection(socket.id);
+            store.removeConnection(socket.id);
             this.logger.warn(`Lost connection to user ${socket.id}`);
             return socket.terminate();
           }
@@ -90,7 +95,7 @@ export class WebSocketServer {
    * @param socket Socket target
    */
   sendStreamsValues(streams: string[], socket): void {
-    this.store.streamIdentifiers.forEach(stream => {
+    store.streamIdentifiers.forEach(stream => {
       if (streams.includes(stream)) {
         this.sendValue(stream, socket, null);
       }
@@ -104,14 +109,14 @@ export class WebSocketServer {
    */
   sendValue(stream: string, socket, value?: any): void {
     let message = value;
-    if (!message) {
+    if (!message && store.streams[stream]) {
       message = {
-        fullValue: this.store.streams[stream].value,
-        changeId: this.store.nextId(stream)
+        fullValue: store.streams[stream].value,
+        changeId: store.nextId(stream)
       };
     }
 
-    if (this.store.streams[stream]) {
+    if (store.streams[stream]) {
       socket.send(JSON.stringify(message));
     }
   }
@@ -122,16 +127,16 @@ export class WebSocketServer {
    * @param message Edit object
    */
   updateStreamValue(id: string, message: message): void {
-    if (!this.store.streams[message.stream]) {
+    if (!store.streams[message.stream]) {
       return;
     }
 
-    const item: message = this.store.addChange(message.stream, {
+    const item: message = store.addChange(message.stream, {
       ...message
     });
 
     this.wss.clients.forEach(socket => {
-      const streams: string[] = this.store.connections[socket.id] || [];
+      const streams: string[] = store.connections[socket.id] || [];
       if (streams.includes(message.stream) && socket.id !== item.socketOrigin) {
         this.sendValue(message.stream, socket, item);
         this.logger.info(`Sent stream ${message.stream} value from ${id} to ${item.socketOrigin}`);
