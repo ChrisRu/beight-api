@@ -1,12 +1,12 @@
 import * as bcrypt from 'bcrypt';
 import Logger from '@/services/logger';
 import database from '@/components/database';
-import { message } from '@/components/ws';
+import { Message } from '@/components/ws';
 import { parseEdit } from '@/services/util';
 import globals from '@/services/globals';
 
 export interface stream {
-  changes: message[];
+  changes: Message[];
   value: string;
   language: number;
   active: boolean;
@@ -80,7 +80,7 @@ export class Store {
    * @param item Change object
    * @returns Change object
    */
-  addChange(stream: string, item: message): message {
+  addChange(stream: string, item: Message): Message {
     if (this.streams[stream]) {
       this.streams[stream].changes.push(item);
       this.setValue(item.stream, parseEdit(this.streams[item.stream].value, item.changes));

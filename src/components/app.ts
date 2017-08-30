@@ -1,6 +1,6 @@
 import * as Koa from 'koa';
 import * as cors from 'kcors';
-import * as bodyParser from 'koa-body';
+import * as bodyParser from 'koa-bodyparser';
 import * as session from 'koa-session';
 import database from '@/components/database';
 import * as passport from 'koa-passport';
@@ -17,7 +17,7 @@ passport.deserializeUser((id, done) => {
   return database
     .query('SELECT * FROM account WHERE id = $1', [id])
     .then(user => done(null, user))
-    .catch(error => done(error));
+    .catch(error => done(error, null));
 });
 
 passport.use(

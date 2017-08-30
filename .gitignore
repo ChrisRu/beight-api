@@ -9,9 +9,6 @@
 # production
 /dist
 
-# typescript
-/typings
-
 # misc
 .DS_Store
 .env

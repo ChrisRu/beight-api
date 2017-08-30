@@ -5,7 +5,7 @@ import Logger from '@/services/logger';
 import app from '@/components/app';
 import store from '@/components/store';
 
-export interface message {
+export interface Message {
   type: string;
   socketOrigin: string;
   stream?: string;
@@ -28,7 +28,6 @@ export class WebSocketServer {
 
     this.wss.on('connection', socket => {
       socket.id = uuid.v4();
-      socket.isAlive = true;
 
       this.logger.info(`User ${socket.id} connected`);
 
@@ -40,7 +39,7 @@ export class WebSocketServer {
           this.logger.error(`Can't parse socket message from ${socket.id}`);
         }
 
-        const data: message = {
+        const data: Message = {
           ...parsedMessage,
           socketOrigin: socket.id
         };
@@ -66,22 +65,18 @@ export class WebSocketServer {
         store.removeConnection(socket.id);
         this.logger.info(`User ${socket.id} disconnected`);
       });
-
-      socket.on('pong', () => {
-        socket.isAlive = true;
-      });
     });
 
     this.server.listen(this.port, () => {
       const interval = setInterval(() => {
         this.wss.clients.forEach(socket => {
-          if (socket.isAlive === false) {
+          try {
+            socket.ping('', false, false);
+          } catch (error) {
             store.removeConnection(socket.id);
             this.logger.warn(`Lost connection to user ${socket.id}`);
             return socket.terminate();
           }
-          socket.isAlive = false;
-          socket.ping('', false, true);
         });
       }, 30000);
 
@@ -126,12 +121,12 @@ export class WebSocketServer {
    * @param id Connection identifier
    * @param message Edit object
    */
-  updateStreamValue(id: string, message: message): void {
+  updateStreamValue(id: string, message: Message): void {
     if (!store.streams[message.stream]) {
       return;
     }
 
-    const item: message = store.addChange(message.stream, {
+    const item: Message = store.addChange(message.stream, {
       ...message
     });
 

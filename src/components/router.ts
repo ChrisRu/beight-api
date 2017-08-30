@@ -1,6 +1,5 @@
 import * as Router from 'koa-router';
 import * as passport from 'koa-passport';
-import * as bodyParser from 'koa-body';
 import app from '@/components/app';
 import database from '@/components/database';
 import store from '@/components/store';
@@ -24,15 +23,15 @@ router
         ctx.body = { error: 'Not logged in' };
         ctx.throw(401);
       } else {
-        const { value } = ctx.request['body'];
+        const { value } = ctx.request.body;
         const game = await store.createGame(JSON.parse(value));
 
         ctx.type = 'application/json';
         ctx.body = { guid: game[0] };
       }
-    })(ctx);
+    })(ctx, next);
   })
-  .post('/login', bodyParser, async (ctx, next) => {
+  .post('/login', async (ctx, next) => {
     console.log(ctx.request.body);
   })
   .post('/logout', async (ctx, next) => {
@@ -45,7 +44,7 @@ router
 
     let username, password;
     try {
-      const value = JSON.parse(ctx.request['body'].value);
+      const value = JSON.parse(ctx.request.body.value);
       username = value.username;
       password = value.password;
     } catch (error) {
