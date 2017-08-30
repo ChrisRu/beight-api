@@ -44,3 +44,30 @@ export function parseEdit(value: string, changes: EditOperation[]): string {
 
   return newValue.join('\n');
 }
+
+/**
+ * Remove keys from an object
+ * @param object Object to remove keys from
+ * @param keys Keys to remove
+ * @returns New object without keys
+ */
+export function removeKeys(object: object, keys: string[]) {
+  const newObject = Object.assign({}, object);
+  keys.forEach(key => {
+    delete newObject[key];
+  });
+  return newObject;
+}
+
+/**
+ * Generate a Random URL
+ * @param count URL Length
+ */
+export function generateUrl(count: number): string {
+	const characters = "abcdefghijklmnopqrstuvwxyz1234567890_-";
+	const array = [];
+	for (let i = 0; i < count; i++) {
+		array.push(characters[Math.floor(Math.random() * characters.length)]);
+	}
+	return array.join('');
+}
