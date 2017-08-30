@@ -100,16 +100,18 @@ export class Logger {
    */
   private static getColorTitle(title: string): string {
     switch (title) {
-      case 'server':
-        return 'green';
-      case 'router':
-        return 'yellow';
       case 'websocket':
         return 'red';
+      case 'router':
+        return 'yellow';
+      case 'server':
+        return 'green';
       case 'store':
         return 'blue';
       case 'database':
         return 'magenta';
+      case 'auth':
+        return 'cyan';
       default:
         return 'white';
     }

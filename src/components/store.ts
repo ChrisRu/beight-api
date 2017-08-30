@@ -148,15 +148,13 @@ export class Store {
 
   async createUser(username, password) {
     if (!username || !password) {
-      this.logger.error('No username or password supplied for user create');
-      return;
+      throw new Error('Missing username or password');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10).catch(error => {
-      this.logger.error(`Can't hash password: ${error}`);
+      throw new Error(`Can't hash password: ${error}`);
     });
 
-    console.log(username, hashedPassword);
     return database
       .query(
         `
@@ -166,8 +164,8 @@ export class Store {
     `,
         [username, hashedPassword]
       )
-      .catch(e => {
-        console.error(e);
+      .catch(error => {
+        throw new Error(`Can't create new user: ${error}`);
       });
   }
 
