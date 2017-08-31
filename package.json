@@ -55,6 +55,7 @@
   "scripts": {
     "build": "NODE_ENV=production webpack -p --colors --progress",
     "watch": "NODE_ENV=development webpack --hot --watch --colors --progress",
+    "start": "npm run watch",
     "dev": "npm run watch",
     "prod": "npm run build"
   }
