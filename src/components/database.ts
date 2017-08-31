@@ -158,6 +158,17 @@ export class Database {
       });
   }
 
+  getGame(guid): Promise<void | object[]> {
+    const streamQuery =
+      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1)';
+
+    return this.query(streamQuery, [guid])
+      .then(data => data.rows)
+      .catch(error => {
+        this.logger.error(`Can't get games ${error}`);
+      });
+  }
+
   async getUnusedGuid(): Promise<string> {
     const url = generateUrl(6);
     return this.query(`SELECT guid FROM game WHERE guid = $1`, [url]).then(data => {

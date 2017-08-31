@@ -11,6 +11,10 @@ router
     ctx.type = 'application/json';
     ctx.body = await database.getGames();
   })
+  .get('/games/:guid', async (ctx, next) => {
+    ctx.type = 'application/json';
+    ctx.body = await database.getGame(ctx.params.guid);
+  })
   .post('/create', async (ctx, next) => {
     ctx.type = 'application/json';
 
