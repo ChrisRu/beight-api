@@ -27,14 +27,22 @@ router
       ctx.body = { success: false, error: 'Unauthorized' };
     }
   })
-  .post('/login', passport.authenticate('local'))
+  .get('/loggedin', (ctx, next) => {
+    ctx.type = 'application/json';
+    ctx.body = { authenticated: ctx.isAuthenticated() };
+  })
   .post('/logout', (ctx, next) => {
-    return ctx.logout();
+    ctx.logout();
+    ctx.type = 'application/json';
+    ctx.body = { authenticated: ctx.isAuthenticated() };
+  })
+  .post('/login', passport.authenticate('local'), (ctx, next) => {
+    ctx.type = 'application/json';
+    ctx.body = { authenticated: ctx.isAuthenticated() };
   })
   .post('/signup', async (ctx, next) => {
     ctx.type = 'application/json';
 
-    const saltRounds = 10;
     const { username, password } = ctx.request.body;
 
     return store
