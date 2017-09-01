@@ -1,6 +1,6 @@
 import Logger from '@/services/logger';
 import { Pool, QueryResult } from 'pg';
-import { generateUrl } from '@/services/util';
+import { generateUrl, serialPromise } from '@/services/util';
 
 export class Database {
   pool: Pool;
@@ -21,6 +21,9 @@ export class Database {
     this.logger = new Logger('database');
   }
 
+  /**
+   * Connect to database
+   */
   async connect(): Promise<any> {
     return this.pool.connect(async error => {
       if (error) {
@@ -32,17 +35,40 @@ export class Database {
       this.connected = true;
       this.logger.info(`Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`);
 
-      await this.createTables(['Game', 'Stream', 'Account']);
+      return this.createTables(['Game', 'Stream', 'Account']);
     });
   }
 
+  /**
+   * Execute query to database
+   * @param query Query to execute
+   * @param data Query data
+   */
   query(query: string, data?: any[]): Promise<any> {
+    if (!query) {
+      this.logger.warn(`Query '${query}' is not valid`);
+    }
+
+    if (data && !Array.isArray(data)) {
+      this.logger.warn(`Query data is not an array, converting`);
+      data = [].concat(data);
+    }
+
     return this.pool.query(query, data).catch(error => {
       this.logger.error(error);
     });
   }
 
+  /**
+   * Drop a table in the database
+   * @param table Table name
+   */
   dropTable(table: string): Promise<any> {
+    if (!table) {
+      this.logger.error(`Can't drop table: ${table}`);
+      return Promise.resolve();
+    }
+
     const query = `DROP TABLE ${table}`;
     return this.query(query)
       .then(() => {
@@ -53,6 +79,12 @@ export class Database {
       });
   }
 
+  /**
+   * Update value in the database
+   * @param game Game identifier
+   * @param stream Stream Identifier
+   * @param value Stream value
+   */
   updateValue(game: number, stream: number, value: string): Promise<any> {
     const query = `
       INSERT INTO
@@ -67,22 +99,33 @@ export class Database {
     });
   }
 
+  /**
+   * Create tables if they don't exist
+   * @param tables Table names
+   */
   async createTables(tables: string[]): Promise<Promise<any>[]> {
-    return Promise.all(
-      tables.map(table =>
-        this.query(`SELECT to_regclass('${table}')`)
-          .then(res => {
-            if (res.rows[0].to_regclass === null) {
-              return this[`create${table}Table`]();
-            }
-          })
-          .catch(error => {
-            this.logger.error(`Can't execute query: ${error}`);
-          })
-      )
-    );
+    const getPromise = (table: string) => (): Promise<any> => {
+      if (!table) {
+        return Promise.resolve([]);
+      }
+
+      return this.query(`SELECT to_regclass('${table.toLowerCase()}')`)
+        .then(res => {
+          if (res.rows[0].to_regclass === null) {
+            return this[`create${table}Table`]();
+          }
+        })
+        .catch(error => {
+          this.logger.error(`Can't execute query: ${error}`);
+        });
+    };
+
+    return serialPromise((tables || []).map(table => getPromise(table)));
   }
 
+  /**
+   * Create Account Table
+   */
   createAccountTable(): Promise<any> {
     const query = `
       CREATE TABLE account (
@@ -102,6 +145,9 @@ export class Database {
       });
   }
 
+  /**
+   * Create Game Table
+   */
   createGameTable(): Promise<any> {
     const query = `
       CREATE TABLE game (
@@ -120,14 +166,19 @@ export class Database {
       });
   }
 
+  /**
+   * Create Stream Table
+   */
   createStreamTable(): Promise<any> {
     const query = `
       CREATE TABLE stream (
-        id        serial    PRIMARY KEY,
+        id        integer   NOT NULL,
         game      integer   NOT NULL REFERENCES game(id),
         language  integer   NOT NULL,
         active    boolean   NOT NULL DEFAULT FALSE,
-        value     text      NOT NULL
+        value     text      NOT NULL,
+
+        PRIMARY KEY(id, game)
       )
     `;
 
@@ -140,6 +191,9 @@ export class Database {
       });
   }
 
+  /**
+   * Get all active games sorted by date
+   */
   getGames(): Promise<void | object[]> {
     const gameQuery = 'SELECT id, guid FROM game ORDER BY date';
     const streamQuery = 'SELECT id, language, active, value FROM stream WHERE game = $1';
@@ -158,6 +212,10 @@ export class Database {
       });
   }
 
+  /**
+   * Get game by guid
+   * @param guid Game guid
+   */
   getGame(guid): Promise<void | object[]> {
     const streamQuery =
       'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1)';
@@ -169,6 +227,9 @@ export class Database {
       });
   }
 
+  /**
+   * Get a new unused GUID
+   */
   async getUnusedGuid(): Promise<string> {
     const url = generateUrl(6);
     return this.query(`SELECT guid FROM game WHERE guid = $1`, [url]).then(data => {

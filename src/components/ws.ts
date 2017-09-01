@@ -8,8 +8,9 @@ import store from '@/components/store';
 export interface Message {
   type: string;
   socketOrigin: string;
-  stream?: string;
-  streams?: string[];
+  game?: string;
+  stream?: number;
+  streams?: number[];
   changes?: any;
 }
 
@@ -46,11 +47,11 @@ export class WebSocketServer {
 
         switch (data.type) {
           case 'refetch':
-            this.sendValue(data.stream, socket, null);
+            this.sendValue(data.game, data.stream, socket, null);
             break;
           case 'info':
-            store.addConnection(socket.id, data.streams);
-            this.sendStreamsValues(data.streams, socket);
+            store.addConnection(socket.id, data.game, data.streams);
+            this.sendStreamsValues(data.game, data.streams, socket);
             break;
           case 'update':
             this.updateStreamValue(socket.id, data);
@@ -89,9 +90,9 @@ export class WebSocketServer {
    * @param streams Stream identifiers
    * @param socket Socket target
    */
-  sendStreamsValues(streams: string[], socket): void {
+  sendStreamsValues(game: string, streams: number[], socket): void {
     store.streamIdentifiers.forEach(stream => {
-      if (streams.includes(stream)) {
+      if (streams.map(stream => `${game}_${stream}`).includes(stream)) {
         this.sendValue(stream, socket, null);
       }
     });
@@ -99,19 +100,20 @@ export class WebSocketServer {
 
   /**
    * Send the full value to the socket
+   * @param game Game identifier
    * @param stream Stream identifier
    * @param socket Socket target
    */
-  sendValue(stream: string, socket, value?: any): void {
+  sendValue(game: string, stream: number, socket, value?: any): void {
     let message = value;
-    if (!message && store.streams[stream]) {
+    if (!message && store.games[game][stream]) {
       message = {
-        fullValue: store.streams[stream].value,
-        changeId: store.nextId(stream)
+        fullValue: store.games[game][stream].value,
+        changeId: store.nextId(game, stream)
       };
     }
 
-    if (store.streams[stream]) {
+    if (store.games[game][stream]) {
       socket.send(JSON.stringify(message));
     }
   }
@@ -122,19 +124,19 @@ export class WebSocketServer {
    * @param message Edit object
    */
   updateStreamValue(id: string, message: Message): void {
-    if (!store.streams[message.stream]) {
+    if (!store.games[message.game][message.stream]) {
       return;
     }
 
-    const item: Message = store.addChange(message.stream, {
+    const item: Message = store.addChange(message.game, message.stream, {
       ...message
     });
 
     this.wss.clients.forEach(socket => {
-      const streams: string[] = store.connections[socket.id] || [];
+      const streams: number[] = store.connections[socket.id] || [];
       if (streams.includes(message.stream) && socket.id !== item.socketOrigin) {
-        this.sendValue(message.stream, socket, item);
-        this.logger.info(`Sent stream ${message.stream} value from ${id} to ${item.socketOrigin}`);
+        this.sendValue(message.game, message.stream, socket, item);
+        this.logger.info(`Sent stream ${message.stream} from game ${message.game} value from ${id} to ${item.socketOrigin}`);
       }
     });
   }

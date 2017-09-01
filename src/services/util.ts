@@ -64,10 +64,23 @@ export function removeKeys(object: object, keys: string[]) {
  * @param count URL Length
  */
 export function generateUrl(count: number): string {
-	const characters = "abcdefghijklmnopqrstuvwxyz1234567890_-";
-	const array = [];
-	for (let i = 0; i < count; i++) {
-		array.push(characters[Math.floor(Math.random() * characters.length)]);
-	}
-	return array.join('');
+  const characters = 'abcdefghijklmnopqrstuvwxyz1234567890_-';
+  const array = [];
+  for (let i = 0; i < count; i++) {
+    array.push(characters[Math.floor(Math.random() * characters.length)]);
+  }
+  return array.join('');
+}
+
+/**
+ * Run promises in serial
+ * @param funcs Array of functions that return a promise
+ */
+export function serialPromise(funcs: (() => Promise<any>)[]) {
+  return funcs.reduce(
+    (promise, func) => {
+      return promise.then(result => func().then(Array.prototype.concat.bind(result)))
+    },
+    Promise.resolve([])
+  );
 }

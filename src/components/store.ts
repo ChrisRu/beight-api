@@ -5,45 +5,83 @@ import { Message } from '@/components/ws';
 import { parseEdit } from '@/services/util';
 import globals from '@/services/globals';
 
-export interface stream {
+export interface Stream {
   changes: Message[];
   value: string;
   language: number;
   active: boolean;
+  game: string;
+  id: number;
 }
 
 export class Store {
-  streams: { [id: string]: stream };
-  connections: { [id: string]: string[] };
+  games: {
+    [gameGuid: string]: {
+      [streamId: number]: Stream;
+    };
+  };
+  connections: {
+    [id: number]: number[];
+  };
   logger: Logger;
+  streamCount: { [id: number]: number };
 
   constructor() {
-    this.streams = {};
+    this.games = {};
     this.connections = {};
     this.logger = new Logger('store');
+    this.streamCount = {};
 
-    database.connect();
-    database.query('SELECT * FROM stream').then(streams => {
-      streams.rows.forEach(stream => {
-        this.streams[stream.id] = {
-          changes: [],
-          value: stream.value,
-          active: stream.active,
-          language: stream.language
-        };
+    this.connect();
+  }
+
+  /**
+   * Connect to the database and fetch games + streams
+   */
+  async connect() {
+    await database.connect();
+    /*
+    return database
+      .query(
+        `
+        SELECT stream.id, stream.language, stream.active, stream.value, game.guid
+        FROM stream
+        JOIN game
+        ON stream.game = game.id
+      `
+      )
+      .then(streams => {
+        streams.rows.forEach(stream => {
+          if (this.games.hasOwnProperty(stream.guid) === false) {
+            this.games[stream.guid] = {};
+          }
+          this.games[stream.guid][stream.id] = {
+            changes: [],
+            value: stream.value,
+            active: stream.active,
+            language: stream.language,
+            game: stream.guid,
+            id: stream.id
+          };
+        });
+        if (streams.rows.length > 0) {
+          this.streamCount[streams.rows[0].guid] = streams.rows.length;
+        }
+        return streams;
       });
-    });
+      */
   }
 
   /**
    * Add a connection with streams
    * @param id Connecton identifier
+   * @param game Game identifier
    * @param items Streams to listen to
    * @returns Streams to listen to
    */
-  addConnection(id: string, items: string[]): string[] {
-    this.connections[id] = items.filter(item => {
-      return typeof item === 'string' && this.streams[item];
+  addConnection(id: string, game: string, items: number[]): number[] {
+    this.connections[id] = (items || []).filter(item => {
+      return typeof item === 'number' && this.games[game][item];
     });
     this.logger.info(`User ${id} subscribed to streams: ${this.connections[id].join(', ')}`);
     return this.connections[id];
@@ -61,29 +99,35 @@ export class Store {
 
   /**
    * Set a new stream value
+   * @param game Game identifier
    * @param stream Stream identifier
    * @param value Stream value
    * @returns Stream value
    */
-  setValue(stream: string, value: string): string {
-    if (this.streams[stream]) {
-      this.streams[stream].value = value;
+  setValue(game: string, stream: number, value: string): string {
+    if (this.games[game][stream]) {
+      this.games[game][stream].value = value;
       this.logStreamValue(stream);
-      database.query('UPDATE stream SET value = $1 WHERE guid = $2', [value, stream]);
+      database.query('UPDATE stream SET value = $1 WHERE id = $2 AND game in (SELECT id FROM game WHERE guid = $3)', [
+        value,
+        stream,
+        game
+      ]);
       return value;
     }
   }
 
   /**
    * Add a change to a stream
+   * @param game Game identifier
    * @param stream Stream identifier
    * @param item Change object
    * @returns Change object
    */
-  addChange(stream: string, item: Message): Message {
-    if (this.streams[stream]) {
-      this.streams[stream].changes.push(item);
-      this.setValue(item.stream, parseEdit(this.streams[item.stream].value, item.changes));
+  addChange(game: string, stream: number, item: Message): Message {
+    if (this.games[game][stream]) {
+      this.games[game][stream].changes.push(item);
+      this.setValue(game, stream, parseEdit(this.games[game][stream].value, item.changes));
       return item;
     }
   }
@@ -92,21 +136,21 @@ export class Store {
    * Create a new game
    * @param values Stream create data
    */
-  async createGame(values): Promise<any> {
-    const url = await database.getUnusedGuid();
+  async createGame(values): Promise<Stream[]> {
+    const guid: string = await database.getUnusedGuid();
+    const answer = await database.query(`INSERT INTO game(guid) VALUES($1) RETURNING id, guid`, [guid]);
+    const { id } = answer.rows[0];
+    this.streamCount[guid] = 0;
+    this.games[guid] = {};
 
-    const answer = await database
-      .query(`INSERT INTO game(guid) VALUES($1) RETURNING id, guid`, [url])
-      .then(data => {
-        this.logger.info(`Created game ${url}`);
-        return data;
-      })
-      .catch(error => {
-        this.logger.error(`Can't create game ${url}: ${error}`);
-      });
-
-    const { id, guid } = answer.rows[0];
-    return Promise.all(values.map(value => this.createStream(id, guid, value.language, value.active, value.content)));
+    const streams: Stream[] = values.map(value =>
+      this.createStream(id, guid, value.language, value.active, value.content)
+    );
+    return Promise.all(streams).then(data => {
+      this.logger.info(`Created game ${guid}`);
+      this.streamCount[data[0].game] = data.length;
+      return data;
+    });
   }
 
   /**
@@ -124,26 +168,34 @@ export class Store {
     language: number,
     active: boolean,
     value: string
-  ): Promise<string> {
+  ): Promise<Stream> {
+    this.streamCount[gameGuid]++;
+    const streamId = this.streamCount[gameGuid];
+
     const answer = await database.query(
       `
       INSERT INTO
-        stream(game, language, active, value)
-        VALUES($1, $2, $3, $4)
+        stream(id, game, language, active, value)
+        VALUES($1, $2, $3, $4, $5)
       RETURNING id
     `,
-      [gameId, language, active, value]
+      [streamId, gameId, language, active, value]
     );
 
     const { id } = answer.rows[0];
-    this.streams[id] = {
+
+    this.logger.info(`Stream ${id} for game ${gameGuid} created`);
+
+    const stream: Stream = {
       changes: [],
       value,
       language,
-      active
+      active,
+      id,
+      game: gameGuid
     };
-    this.logger.info(`Stream ${id} for game ${gameGuid} created`);
-    return gameGuid;
+    this.games[gameGuid][id] = stream;
+    return stream;
   }
 
   async createUser(username, password) {
@@ -171,12 +223,13 @@ export class Store {
 
   /**
    * Get the next change identifier
+   * @param game Game identifier
    * @param stream Stream identifier
    * @returns Change identifier
    */
-  nextId(stream: string): number {
-    if (this.streams[stream].value) {
-      return this.streams[stream].value.length + 1;
+  nextId(game: string, stream: number): number {
+    if (this.games[game][stream].changes) {
+      return this.games[game][stream].changes.length + 1;
     } else {
       return 0;
     }
@@ -187,14 +240,20 @@ export class Store {
    * @returns Stream identifiers
    */
   get streamIdentifiers(): string[] {
-    return Object.keys(this.streams).map(key => key);
+    return [].concat(
+      Object.keys(this.games).map(game => {
+        return Object.keys(this.games[game]).map(stream => {
+          return this.games[game][stream].game + '_' + this.games[game][stream].id;
+        });
+      })
+    );
   }
 
   /**
    * Log the new stream value
    * @param stream Stream identifier
    */
-  private logStreamValue(stream: string): void {
+  private logStreamValue(stream: number): void {
     this.logger.info(`Stream ${stream} updated value`);
   }
 }
