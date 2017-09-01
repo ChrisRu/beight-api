@@ -36,7 +36,6 @@
     "@types/passport": "^0.3.4",
     "@types/passport-local": "^1.0.30",
     "@types/pg": "^6.1.43",
-    "@types/ws": "^3.0.2",
     "babel-cli": "^6.24.1",
     "babel-loader": "^7.1.1",
     "babel-plugin-module-resolver": "^2.7.1",
