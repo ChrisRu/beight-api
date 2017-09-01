@@ -105,6 +105,11 @@ export class WebSocketServer {
    * @param socket Socket target
    */
   sendValue(game: string, stream: number, socket, value?: any): void {
+    if (!game || !stream) {
+      this.logger.warn('Game or stream not supplied to send value');
+      return;
+    }
+
     let message = value;
     if (!message && store.games[game][stream]) {
       message = {
@@ -124,7 +129,13 @@ export class WebSocketServer {
    * @param message Edit object
    */
   updateStreamValue(id: string, message: Message): void {
-    if (!store.games[message.game][message.stream]) {
+    if (message.game == null || message.stream == null) {
+      this.logger.warn('User did not supply game or stream identifier');
+      return;
+    }
+
+    if (store.games[message.game] == null || store.games[message.game][message.stream] == null) {
+      this.logger.warn('Game or stream does not exist');
       return;
     }
 
@@ -133,10 +144,13 @@ export class WebSocketServer {
     });
 
     this.wss.clients.forEach(socket => {
-      const streams: number[] = store.connections[socket.id] || [];
+      const connection = store.connections.find(conn => conn.connectionId === socket.id) || { streams: [] };
+      const streams: number[] = connection.streams;
       if (streams.includes(message.stream) && socket.id !== item.socketOrigin) {
         this.sendValue(message.game, message.stream, socket, item);
-        this.logger.info(`Sent stream ${message.stream} from game ${message.game} value from ${id} to ${item.socketOrigin}`);
+        this.logger.info(
+          `Sent stream ${message.stream} from game ${message.game} value from ${id} to ${item.socketOrigin}`
+        );
       }
     });
   }

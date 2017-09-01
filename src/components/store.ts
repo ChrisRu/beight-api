@@ -21,14 +21,16 @@ export class Store {
     };
   };
   connections: {
-    [id: number]: number[];
-  };
+    connectionId: string;
+    game: string;
+    streams: number[];
+  }[];
   logger: Logger;
   streamCount: { [id: number]: number };
 
   constructor() {
     this.games = {};
-    this.connections = {};
+    this.connections = [];
     this.logger = new Logger('store');
     this.streamCount = {};
 
@@ -40,7 +42,6 @@ export class Store {
    */
   async connect() {
     await database.connect();
-    /*
     return database
       .query(
         `
@@ -69,7 +70,6 @@ export class Store {
         }
         return streams;
       });
-      */
   }
 
   /**
@@ -79,11 +79,14 @@ export class Store {
    * @param items Streams to listen to
    * @returns Streams to listen to
    */
-  addConnection(id: string, game: string, items: number[]): number[] {
-    this.connections[id] = (items || []).filter(item => {
-      return typeof item === 'number' && this.games[game][item];
+  addConnection(id: string, game: string, items: any[]): number[] {
+    const streams = items.map(item => item.id);
+    this.connections.push({
+      connectionId: id,
+      game,
+      streams
     });
-    this.logger.info(`User ${id} subscribed to streams: ${this.connections[id].join(', ')}`);
+    this.logger.info(`User ${id} subscribed on game ${game} to streams: ${streams.join(', ')}`);
     return this.connections[id];
   }
 
