@@ -65,10 +65,7 @@ export function removeKeys(object: object, keys: string[]) {
  */
 export function generateUrl(count: number): string {
   const characters = 'abcdefghijklmnopqrstuvwxyz1234567890_-';
-  const array = [];
-  for (let i = 0; i < count; i++) {
-    array.push(characters[Math.floor(Math.random() * characters.length)]);
-  }
+  const array = [...Array(count)].map(() => characters[Math.floor(Math.random() * characters.length)]);
   return array.join('');
 }
 
