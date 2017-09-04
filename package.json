@@ -1,7 +1,7 @@
 {
   "name": "beight-core",
   "version": "1.0.0",
-  "description": "",
+  "description": "Beight core, the backend of Beight",
   "main": "src/index.js",
   "author": "Christian Ruigrok",
   "license": "ISC",

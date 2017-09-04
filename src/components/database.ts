@@ -1,6 +1,6 @@
-import Logger from '@/services/logger';
 import { Pool, QueryResult } from 'pg';
 import { generateUrl, serialPromise } from '@/services/util';
+import Logger from '@/services/logger';
 
 export class Database {
   pool: Pool;
@@ -27,15 +27,20 @@ export class Database {
   async connect(): Promise<any> {
     return this.pool.connect(async error => {
       if (error) {
-        this.logger.error(`Can't connect to database: ${error}`);
-        setTimeout(this.connect, 3000);
-        return;
+        this.logger.warn(`Can't connect to database: ${error}`);
+
+        return new Promise(r => setTimeout(r, 3000)).then(() => {
+          this.logger.info('Retrying to connect to database...');
+          return this.connect();
+        });
+      } else {
+        this.connected = true;
+        this.logger.info(
+          `Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`
+        );
+
+        return this.createTables(['Game', 'Stream', 'Account']);
       }
-
-      this.connected = true;
-      this.logger.info(`Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`);
-
-      return this.createTables(['Game', 'Stream', 'Account']);
     });
   }
 

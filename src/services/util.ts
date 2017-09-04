@@ -77,10 +77,7 @@ export function generateUrl(count: number): string {
  * @param funcs Array of functions that return a promise
  */
 export function serialPromise(funcs: (() => Promise<any>)[]) {
-  return funcs.reduce(
-    (promise, func) => {
-      return promise.then(result => func().then(Array.prototype.concat.bind(result)))
-    },
-    Promise.resolve([])
-  );
+  return funcs.reduce((promise, func) => {
+    return promise.then(result => func().then(Array.prototype.concat.bind(result)));
+  }, Promise.resolve([]));
 }

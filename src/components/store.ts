@@ -1,9 +1,8 @@
 import * as bcrypt from 'bcrypt';
-import Logger from '@/services/logger';
 import database from '@/components/database';
 import { Message } from '@/components/ws';
 import { parseEdit } from '@/services/util';
-import globals from '@/services/globals';
+import Logger from '@/services/logger';
 
 export interface Stream {
   changes: Message[];

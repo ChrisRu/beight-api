@@ -1,8 +1,8 @@
 import * as passport from 'koa-passport';
-import { Strategy } from 'passport-local';
-import Logger from '@/services/logger';
-import database from '@/components/database';
 import * as bcrypt from 'bcrypt';
+import { Strategy } from 'passport-local';
+import database from '@/components/database';
+import Logger from '@/services/logger';
 
 function getStrategy() {
   return new Strategy(async (username, password, done) => {
