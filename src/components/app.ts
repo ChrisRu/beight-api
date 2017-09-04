@@ -12,10 +12,12 @@ const port = process.env.SERVER_PORT;
 app.keys = [process.env.COOKIE_KEY];
 
 app
-  .use(cors({
-    allowHeaders: 'Content-Type',
-    credentials: true
-  }))
+  .use(
+    cors({
+      allowHeaders: 'Content-Type',
+      credentials: true
+    })
+  )
   .use(bodyParser())
   .use(session({}, app))
   .use(passport.initialize())

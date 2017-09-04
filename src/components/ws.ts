@@ -84,6 +84,12 @@ export class WebSocketServer {
             this.refetch(data.g, data.s[0], socket);
             break;
           /**
+           * Get latest change
+           */
+          case 'l':
+            this.sendValue(data.g, data.s[0], socket, store.games[data.g][data.s[0]].lastChange);
+            break;
+          /**
            * Send info about user and send full stream values
            */
           case 'i':
@@ -209,7 +215,8 @@ export class WebSocketServer {
     });
 
     this.wss.clients.forEach(socket => {
-      const connection = store.connections.find(conn => conn.connectionId === socket.id) || {
+      const connection = store.connections.find(conn => conn.id === socket.id) || {
+        id: null,
         streams: [],
         game: 'null'
       };

@@ -20,7 +20,7 @@ function getStrategy() {
           }
         }
       })
-      .then((user) => {
+      .then(user => {
         Logger.info('auth', `Logged in user: ${user.username}`);
         return done(null, user);
       })

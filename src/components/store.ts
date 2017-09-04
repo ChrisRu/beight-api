@@ -5,12 +5,19 @@ import { parseEdit } from '@/services/util';
 import Logger from '@/services/logger';
 
 export interface Stream {
-  changes: Message[];
+  lastChange: Message;
+  changeCount: number;
   value: string;
   language: number;
   active: boolean;
   game: string;
   id: number;
+}
+
+export interface Connection {
+  id: string;
+  game: string;
+  streams: number[];
 }
 
 export class Store {
@@ -19,11 +26,7 @@ export class Store {
       [streamId: number]: Stream;
     };
   };
-  connections: {
-    connectionId: string;
-    game: string;
-    streams: number[];
-  }[];
+  connections: Connection[];
   logger: Logger;
   streamCount: { [id: number]: number };
 
@@ -56,7 +59,8 @@ export class Store {
             this.games[stream.guid] = {};
           }
           this.games[stream.guid][stream.id] = {
-            changes: [],
+            lastChange: null,
+            changeCount: 0,
             value: stream.value,
             active: stream.active,
             language: stream.language,
@@ -75,17 +79,17 @@ export class Store {
    * Add a connection with streams
    * @param id Connecton identifier
    * @param game Game identifier
-   * @param items Streams to listen to
+   * @param streams Streams to listen to
    * @returns Streams to listen to
    */
-  addConnection(id: string, game: string, items: number[]): number[] {
-    this.connections.push({
-      connectionId: id,
+  addConnection(id: string, game: string, streams: number[]): number[] {
+    const index = this.connections.push({
+      id,
       game,
-      streams: items
+      streams
     });
-    this.logger.info(`User ${id} subscribed on game ${game} to streams: ${items.join(', ')}`);
-    return this.connections[id];
+    this.logger.info(`User ${id} subscribed on game ${game} to streams: ${streams.join(', ')}`);
+    return this.connections[index].streams;
   }
 
   /**
@@ -94,7 +98,10 @@ export class Store {
    * @returns Connection identifier
    */
   removeConnection(id: string): string {
-    delete this.connections[id];
+    const index = this.connections.findIndex(connection => connection.id === id);
+    if (index > -1) {
+      this.connections.splice(index, 1);
+    }
     return id;
   }
 
@@ -127,10 +134,13 @@ export class Store {
    */
   addChange(game: string, stream: number, item: Message): Message {
     if (this.games[game][stream]) {
-      this.games[game][stream].changes.push(item);
+      this.games[game][stream].lastChange = item;
+      this.games[game][stream].changeCount++;
       this.setValue(game, stream, parseEdit(this.games[game][stream].value, item.c.changes));
-      return item;
+    } else {
+      this.logger.warn(`Can't add change game ${game} stream ${stream} is undefined`);
     }
+    return item;
   }
 
   /**
@@ -198,7 +208,8 @@ export class Store {
     this.logger.info(`Stream ${id} for game ${gameGuid} created`);
 
     const stream: Stream = {
-      changes: [],
+      lastChange: null,
+      changeCount: 0,
       value,
       language,
       active,
@@ -242,11 +253,7 @@ export class Store {
    * @returns Change identifier
    */
   nextId(game: string, stream: number): number {
-    if (this.games[game][stream].changes) {
-      return this.games[game][stream].changes.length + 1;
-    } else {
-      return 0;
-    }
+    return this.games[game][stream].changeCount + 1;
   }
 
   /**
