@@ -46,7 +46,8 @@ export class Database {
    */
   query(query: string, data?: any[]): Promise<any> {
     if (!query) {
-      this.logger.warn(`Query '${query}' is not valid`);
+      this.logger.error(`Query '${query}' is not valid`);
+      return Promise.reject(`Query '${query}' is not valid`);
     }
 
     if (data && !Array.isArray(data)) {
@@ -66,7 +67,7 @@ export class Database {
   dropTable(table: string): Promise<any> {
     if (!table) {
       this.logger.error(`Can't drop table: ${table}`);
-      return Promise.resolve();
+      return Promise.reject(`Can't drop table: ${table}`);
     }
 
     const query = `DROP TABLE ${table}`;
@@ -86,6 +87,10 @@ export class Database {
    * @param value Stream value
    */
   updateValue(game: number, stream: number, value: string): Promise<any> {
+    if (!game || !stream) {
+      return Promise.reject('Game or stream not supplied');
+    }
+
     const query = `
       INSERT INTO
         stream(value)
@@ -106,7 +111,8 @@ export class Database {
   async createTables(tables: string[]): Promise<Promise<any>[]> {
     const getPromise = (table: string) => (): Promise<any> => {
       if (!table) {
-        return Promise.resolve([]);
+        this.logger.error(`Table '${table}' is not valid`);
+        return Promise.reject(`Table '${table}' is not valid`);
       }
 
       return this.query(`SELECT to_regclass('${table.toLowerCase()}')`)
@@ -217,6 +223,11 @@ export class Database {
    * @param guid Game guid
    */
   getGame(guid): Promise<void | object[]> {
+    if (!guid) {
+      this.logger.error(`GUID '${guid}' is not valid`);
+      return Promise.reject(`GUID '${guid}' is not valid`);
+    }
+
     const streamQuery =
       'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1)';
 
@@ -232,6 +243,7 @@ export class Database {
    */
   async getUnusedGuid(): Promise<string> {
     const url = generateUrl(6);
+
     return this.query(`SELECT guid FROM game WHERE guid = $1`, [url]).then(data => {
       if (data.rows.length === 0) {
         return url;

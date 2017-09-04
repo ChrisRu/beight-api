@@ -79,14 +79,13 @@ export class Store {
    * @param items Streams to listen to
    * @returns Streams to listen to
    */
-  addConnection(id: string, game: string, items: any[]): number[] {
-    const streams = items.map(item => item.id);
+  addConnection(id: string, game: string, items: number[]): number[] {
     this.connections.push({
       connectionId: id,
       game,
-      streams
+      streams: items
     });
-    this.logger.info(`User ${id} subscribed on game ${game} to streams: ${streams.join(', ')}`);
+    this.logger.info(`User ${id} subscribed on game ${game} to streams: ${items.join(', ')}`);
     return this.connections[id];
   }
 
@@ -130,7 +129,7 @@ export class Store {
   addChange(game: string, stream: number, item: Message): Message {
     if (this.games[game][stream]) {
       this.games[game][stream].changes.push(item);
-      this.setValue(game, stream, parseEdit(this.games[game][stream].value, item.changes));
+      this.setValue(game, stream, parseEdit(this.games[game][stream].value, item.c.changes));
       return item;
     }
   }
@@ -140,8 +139,12 @@ export class Store {
    * @param values Stream create data
    */
   async createGame(values): Promise<Stream[]> {
-    const guid: string = await database.getUnusedGuid();
-    const answer = await database.query(`INSERT INTO game(guid) VALUES($1) RETURNING id, guid`, [guid]);
+    const guid = await database.getUnusedGuid();
+    const answer = await database.query(`INSERT INTO game(guid) VALUES($1) RETURNING id, guid`, [guid]).catch(error => {
+      this.logger.error(`Can't create game: ${error}`);
+      throw new Error(`Can't create game: ${error}`);
+    });
+
     const { id } = answer.rows[0];
     this.streamCount[guid] = 0;
     this.games[guid] = {};
@@ -149,11 +152,17 @@ export class Store {
     const streams: Stream[] = values.map(value =>
       this.createStream(id, guid, value.language, value.active, value.content)
     );
-    return Promise.all(streams).then(data => {
-      this.logger.info(`Created game ${guid}`);
-      this.streamCount[data[0].game] = data.length;
-      return data;
-    });
+
+    return Promise.all(streams)
+      .then(data => {
+        this.logger.info(`Created game ${guid}`);
+        this.streamCount[data[0].game] = data.length;
+        return data;
+      })
+      .catch(error => {
+        this.logger.error(`Can't create game: ${error}`);
+        throw new Error(`Can't create game: ${error}`);
+      });
   }
 
   /**
@@ -201,12 +210,14 @@ export class Store {
     return stream;
   }
 
-  async createUser(username, password) {
+  async createUser(username: string, password: string): Promise<any> {
     if (!username || !password) {
+      this.logger.error('Missing username or password');
       throw new Error('Missing username or password');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10).catch(error => {
+      this.logger.error(`Can't hash password: ${error}`);
       throw new Error(`Can't hash password: ${error}`);
     });
 
@@ -220,6 +231,7 @@ export class Store {
         [username, hashedPassword]
       )
       .catch(error => {
+        this.logger.error(`Can't create new user: ${error}`);
         throw new Error(`Can't create new user: ${error}`);
       });
   }
@@ -244,14 +256,13 @@ export class Store {
    */
   get streamIdentifiers(): string[] {
     return [].concat(
-      Object.keys(this.games).map(game => {
+      ...Object.keys(this.games).map(game => {
         return Object.keys(this.games[game]).map(stream => {
           return this.games[game][stream].game + '_' + this.games[game][stream].id;
         });
       })
     );
   }
-
   /**
    * Log the new stream value
    * @param stream Stream identifier

@@ -28,7 +28,6 @@ router
           ctx.body = { guid: games[0].game };
         })
         .catch(error => {
-          console.log(error);
           ctx.body = { success: false, error: "Can't create game" };
         });
     } else {
