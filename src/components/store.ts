@@ -234,10 +234,10 @@ export class Store {
     return database
       .query(
         `
-      INSERT INTO
-        account(username, password)
-        VALUES($1, $2)
-    `,
+        INSERT INTO
+          account(username, password)
+          VALUES($1, $2)
+      `,
         [username, hashedPassword]
       )
       .catch(error => {
@@ -262,9 +262,9 @@ export class Store {
    */
   get streamIdentifiers(): string[] {
     return [].concat(
-      ...Object.keys(this.games).map(game => {
-        return Object.keys(this.games[game]).map(stream => {
-          return this.games[game][stream].game + '_' + this.games[game][stream].id;
+      Object.values(this.games).map(game => {
+        return Object.keys(game).map(stream => {
+          return game[stream].game + '_' + game[stream].id;
         });
       })
     );
