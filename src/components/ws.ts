@@ -6,34 +6,13 @@ import app from '@/components/app';
 import store, { Stream } from '@/components/store';
 
 export interface Message {
-  /**
-   * Game GUID
-   */
-  g: string;
-  /**
-   * Stream numbers
-   */
-  s: number[];
-  /**
-   * Type of message
-   */
-  t?: string;
-  /**
-   * Id of message origin
-   */
-  o?: string;
-  /**
-   * Change
-   */
-  c?: any;
-  /**
-   * Change Number
-   */
-  n?: number;
-  /**
-   * Full value
-   */
-  f?: string;
+  game: string;
+  streams: number[];
+  type?: string;
+  origin?: string;
+  change?: any;
+  number?: number;
+  full?: string;
 }
 
 export class WebSocketServer {
@@ -71,39 +50,39 @@ export class WebSocketServer {
           o: socket.id
         };
 
-        if (data.t == null || data.g == null || data.s == null) {
+        if (data.type == null || data.game == null || data.streams == null) {
           this.logger.warn('Not all data values supplied');
           return;
         }
 
-        switch (data.t) {
+        switch (data.type) {
           /**
            * Get a Refetch
            */
-          case 'r':
-            this.refetch(data.g, data.s[0], socket);
+          case 'fetch':
+            this.refetch(data.game, data.streams[0], socket);
             break;
           /**
            * Get latest change
            */
-          case 'l':
-            this.sendValue(data.g, data.s[0], socket, store.games[data.g][data.s[0]].lastChange);
+          case 'latest':
+            this.sendValue(data.game, data.streams[0], socket, store.games[data.game][data.streams[0]].lastChange);
             break;
           /**
            * Send info about user and send full stream values
            */
-          case 'i':
-            store.addConnection(socket.id, data.g, data.s);
-            this.sendStreamsValues(data.g, data.s, socket);
+          case 'info':
+            store.addConnection(socket.id, data.game, data.streams);
+            this.sendStreamsValues(data.game, data.streams, socket);
             break;
           /**
            * Send value update/change
            */
-          case 'u':
+          case 'change':
             this.updateStreamValue(socket.id, data);
             break;
           default:
-            this.logger.warn(`User ${socket.id} sent message with unknown type ${data.t.toString()}`);
+            this.logger.warn(`User ${socket.id} sent message with unknown type ${data.type.toString()}`);
             break;
         }
       });
@@ -186,10 +165,10 @@ export class WebSocketServer {
   refetch(game: string, stream: number, socket: any) {
     this.logger.info(`Sending value of game ${game} to stream ${stream} to user ${socket.id}`);
     this.sendValue(game, stream, socket, {
-      f: store.games[game][stream].value,
-      n: store.nextId(game, stream),
-      s: [stream],
-      g: game
+      full: store.games[game][stream].value,
+      number: store.nextId(game, stream),
+      streams: [stream],
+      game: game
     });
   }
 
@@ -199,19 +178,19 @@ export class WebSocketServer {
    * @param message Edit object
    */
   updateStreamValue(id: string, message: Message): void {
-    if (message.g == null || message.s == null || message.s[0] == null) {
+    if (message.game == null || message.streams == null || message.streams[0] == null) {
       this.logger.warn('User did not supply game or stream identifier');
       return;
     }
 
-    if (store.games[message.g] == null || store.games[message.g][message.s[0]] == null) {
+    if (store.games[message.game] == null || store.games[message.game][message.streams[0]] == null) {
       this.logger.warn('Game or stream does not exist');
       return;
     }
 
-    const item: Message = store.addChange(message.g, message.s[0], {
+    const item: Message = store.addChange(message.game, message.streams[0], {
       ...message,
-      n: store.nextId(message.g, message.s[0])
+      number: store.nextId(message.game, message.streams[0])
     });
 
     this.wss.clients.forEach(socket => {
@@ -222,11 +201,11 @@ export class WebSocketServer {
       };
       const streams: number[] = connection.streams;
 
-      console.log(socket.id === item.o ? 'same origin' : 'different origin');
+      console.log(socket.id === item.origin ? 'same origin' : 'different origin');
 
-      if (connection.game === message.g && streams.includes(message.s[0]) && socket.id !== item.o) {
-        this.sendValue(message.g, message.s[0], socket, item);
-        this.logger.info(`Sent stream ${message.s} from game ${message.g} value from ${item.o} to ${socket.id}`);
+      if (connection.game === message.game && streams.includes(message.streams[0]) && socket.id !== item.origin) {
+        this.sendValue(message.game, message.streams[0], socket, item);
+        this.logger.info(`Sent stream ${message.streams[0]} from game ${message.game} value from ${item.origin} to ${socket.id}`);
       }
     });
   }

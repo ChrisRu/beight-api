@@ -136,7 +136,7 @@ export class Store {
     if (this.games[game][stream]) {
       this.games[game][stream].lastChange = item;
       this.games[game][stream].changeCount++;
-      this.setValue(game, stream, parseEdit(this.games[game][stream].value, item.c.changes));
+      this.setValue(game, stream, parseEdit(this.games[game][stream].value, item.change.changes));
     } else {
       this.logger.warn(`Can't add change game ${game} stream ${stream} is undefined`);
     }
