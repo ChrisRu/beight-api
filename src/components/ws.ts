@@ -47,7 +47,7 @@ export class WebSocketServer {
 
         const data: Message = {
           ...parsedMessage,
-          o: socket.id
+          origin: socket.id
         };
 
         if (data.type == null || data.game == null || data.streams == null) {
@@ -200,8 +200,6 @@ export class WebSocketServer {
         game: 'null'
       };
       const streams: number[] = connection.streams;
-
-      console.log(socket.id === item.origin ? 'same origin' : 'different origin');
 
       if (connection.game === message.game && streams.includes(message.streams[0]) && socket.id !== item.origin) {
         this.sendValue(message.game, message.streams[0], socket, item);
