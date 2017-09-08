@@ -83,13 +83,13 @@ export class Store {
    * @returns Streams to listen to
    */
   addConnection(id: string, game: string, streams: number[]): number[] {
-    const index = this.connections.push({
+    this.connections.push({
       id,
       game,
       streams
     });
     this.logger.info(`User ${id} subscribed on game ${game} to streams: ${streams.join(', ')}`);
-    return this.connections[index].streams;
+    return streams;
   }
 
   /**
