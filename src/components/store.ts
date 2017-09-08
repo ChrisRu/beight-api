@@ -262,7 +262,7 @@ export class Store {
    */
   get streamIdentifiers(): string[] {
     return [].concat(
-      Object.values(this.games).map(game => {
+      ...Object.values(this.games).map(game => {
         return Object.keys(game).map(stream => {
           return game[stream].game + '_' + game[stream].id;
         });
