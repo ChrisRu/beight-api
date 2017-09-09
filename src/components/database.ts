@@ -234,7 +234,7 @@ export class Database {
     }
 
     const streamQuery =
-      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1)';
+      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1) ORDER BY id';
 
     return this.query(streamQuery, [guid])
       .then(data => data.rows)
