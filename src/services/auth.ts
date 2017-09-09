@@ -26,7 +26,7 @@ function getStrategy() {
       })
       .catch(error => {
         Logger.warn('auth', `Can't login user: ${error}`);
-        return done(null, false);
+        return done(error, false);
       });
   });
 }
@@ -35,7 +35,7 @@ function deserializeUser(id, done) {
   return database
     .query('SELECT * FROM account WHERE id = $1', [id])
     .then(user => done(null, user))
-    .catch(error => done(error, null));
+    .catch(error => done(error, false));
 }
 
 function serializeUser(user, done) {
