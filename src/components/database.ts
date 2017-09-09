@@ -1,6 +1,7 @@
 import { Pool, QueryResult } from 'pg';
 import { generateUrl, serialPromise, sleep } from '@/services/util';
 import Logger from '@/services/logger';
+import globals from '@/services/globals';
 
 export class Database {
   pool: Pool;
@@ -214,14 +215,17 @@ export class Database {
    */
   getGames(): Promise<void | object[]> {
     const gameQuery = 'SELECT id, guid FROM game ORDER BY date';
-    const streamQuery = 'SELECT id, language, active, value FROM stream WHERE game = $1';
+    const streamQuery = 'SELECT id, language, active, value FROM stream WHERE game = $1 ORDER BY id';
 
     return this.query(gameQuery)
       .then(data =>
         Promise.all(
           data.rows.map(async game => ({
             guid: game.guid,
-            streams: (await this.query(streamQuery, [game.id])).rows
+            streams: (await this.query(streamQuery, [game.id])).rows.map(item => ({
+              ...item,
+              language: this.getLanuage(item.language)
+            }))
           }))
         )
       )
@@ -241,13 +245,17 @@ export class Database {
     }
 
     const streamQuery =
-      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1) ORDER BY id';
+      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1)';
 
     return this.query(streamQuery, [guid])
-      .then(data => data.rows)
+      .then(data => data.rows.map(item => ({ ...item, language: this.getLanuage(item.language) })))
       .catch(error => {
         this.logger.error(`Can't get games ${error}`);
       });
+  }
+
+  getLanuage(id): object {
+    return globals.languages.find(language => language.id === id);
   }
 
   /**
