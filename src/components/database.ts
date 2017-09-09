@@ -25,23 +25,28 @@ export class Database {
    * Connect to database
    */
   async connect(): Promise<any> {
-    return this.pool.connect(async error => {
-      if (error) {
-        this.logger.warn(`Can't connect to database: ${error}`);
+    return new Promise(resolve =>
+      this.pool.connect(async error => {
+        if (error) {
+          this.logger.warn(`Can't connect to database: ${error}`);
 
-        return sleep(3000).then(() => {
-          this.logger.info('Retrying to connect to database...');
-          return this.connect();
-        });
-      } else {
-        this.connected = true;
-        this.logger.info(
-          `Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`
-        );
+          return sleep(3000).then(() => {
+            this.logger.info('Retrying to connect to database...');
+            return this.connect();
+          });
+        } else {
+          this.connected = true;
+          this.logger.info(
+            `Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`
+          );
 
-        return this.createTables(['Game', 'Stream', 'Account']);
-      }
-    });
+          return this.createTables(['Game', 'Stream', 'Account']).then(() => {
+            this.logger.info('All tables have (already) been created');
+            resolve();
+          });
+        }
+      })
+    );
   }
 
   /**
@@ -130,6 +135,8 @@ export class Database {
           this.logger.error(`Can't execute query: ${error}`);
         });
     };
+
+    this.logger.info("Creating tables if they don't exist");
 
     return serialPromise((tables || []).map(table => getPromise(table)));
   }
