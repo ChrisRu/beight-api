@@ -1,0 +1,27 @@
+version: '3.1'
+services:
+  api:
+    build: .
+    hostname: api
+    command: npm run dev
+    volumes:
+      - .:/usr/app
+      - /usr/app/node_modules
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+      - "${WEBSOCKET_PORT}:${WEBSOCKET_PORT}"
+    depends_on:
+      - db
+  db:
+    image: postgres:latest
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    ports:
+      - "${DATABASE_PORT}:${DATABASE_PORT}"
+    expose:
+      - "${DATABASE_PORT}"
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
