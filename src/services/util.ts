@@ -78,3 +78,7 @@ export function serialPromise(funcs: (() => Promise<any>)[]) {
     return promise.then(result => func().then(Array.prototype.concat.bind(result)));
   }, Promise.resolve([]));
 }
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

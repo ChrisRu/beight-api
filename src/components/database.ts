@@ -1,5 +1,5 @@
 import { Pool, QueryResult } from 'pg';
-import { generateUrl, serialPromise } from '@/services/util';
+import { generateUrl, serialPromise, sleep } from '@/services/util';
 import Logger from '@/services/logger';
 
 export class Database {
@@ -29,7 +29,7 @@ export class Database {
       if (error) {
         this.logger.warn(`Can't connect to database: ${error}`);
 
-        return new Promise(r => setTimeout(r, 3000)).then(() => {
+        return sleep(3000).then(() => {
           this.logger.info('Retrying to connect to database...');
           return this.connect();
         });
