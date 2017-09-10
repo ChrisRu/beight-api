@@ -4,7 +4,7 @@
   "description": "Beight core, the backend of Beight",
   "main": "src/index.js",
   "author": "Christian Ruigrok",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "bcrypt": "^1.0.3",
     "chalk": "^2.1.0",

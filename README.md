@@ -2,6 +2,9 @@
 A collaborative web editor built with Node, PostgreSQL, Typescript, KoaJS, PassportJS and WS.
 This is the backend/API for the Beight application. If you want the full experience, go to https://github.com/ChrisRu/beight-client and install the frontend.
 
+# License
+This application is MIT licensed
+
 # Setup
 1. Install Docker Compose
 
