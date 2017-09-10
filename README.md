@@ -1,5 +1,5 @@
 # Beight Core
-A collaborative web editor built with Typescript, ES6 and WS.
+A collaborative web editor built with Node, PostgreSQL, Typescript, KoaJS, PassportJS and WS.
 This is the backend/API for the Beight application. If you want the full experience, go to https://github.com/ChrisRu/beight-client and install the frontend.
 
 # Setup
