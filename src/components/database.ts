@@ -1,7 +1,7 @@
 import { Pool, QueryResult } from 'pg';
 import { generateUrl, serialPromise, sleep } from '@/services/util';
 import Logger from '@/services/logger';
-import globals from '@/services/globals';
+import globals, { language } from '@/services/globals';
 
 export class Database {
   pool: Pool;
@@ -215,7 +215,7 @@ export class Database {
    */
   getGames(): Promise<void | object[]> {
     const gameQuery = 'SELECT id, guid FROM game ORDER BY date';
-    const streamQuery = 'SELECT id, language, active, value FROM stream WHERE game = $1 ORDER BY id';
+    const streamQuery = 'SELECT id, language, active, value FROM stream WHERE game = $1';
 
     return this.query(gameQuery)
       .then(data =>
@@ -224,7 +224,7 @@ export class Database {
             guid: game.guid,
             streams: (await this.query(streamQuery, [game.id])).rows.map(item => ({
               ...item,
-              language: this.getLanuage(item.language)
+              language: this.getLanguage(item.language)
             }))
           }))
         )
@@ -245,17 +245,25 @@ export class Database {
     }
 
     const streamQuery =
-      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1)';
+      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1) ORDER BY id';
 
     return this.query(streamQuery, [guid])
-      .then(data => data.rows.map(item => ({ ...item, language: this.getLanuage(item.language) })))
+      .then(data => data.rows.map(item => ({ ...item, language: this.getLanguage(item.language) })))
       .catch(error => {
         this.logger.error(`Can't get games ${error}`);
       });
   }
 
-  getLanuage(id): object {
-    return globals.languages.find(language => language.id === id);
+  /**
+   * Get language info by identifier
+   * @param id Language identifier
+   */
+  getLanguage(id: number | string): language {
+    if (typeof id === 'number') {
+      return globals.languages.find(language => language.id === id);
+    } else {
+      return globals.languages.find(language => language.name === id);
+    }
   }
 
   /**

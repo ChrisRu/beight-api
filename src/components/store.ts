@@ -159,7 +159,7 @@ export class Store {
     this.games[guid] = {};
 
     const streams: Stream[] = values.map(value =>
-      this.createStream(id, guid, value.language, value.active, value.content)
+      this.createStream(id, guid, database.getLanguage(value.name).id, value.active, value.content)
     );
 
     return Promise.all(streams)
