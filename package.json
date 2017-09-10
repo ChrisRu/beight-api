@@ -8,7 +8,6 @@
   "dependencies": {
     "bcrypt": "^1.0.3",
     "chalk": "^2.1.0",
-    "concurrently": "^3.5.0",
     "dotenv": "^4.0.0",
     "kcors": "^2.2.1",
     "koa": "^2.3.0",
@@ -44,6 +43,7 @@
     "babel-polyfill": "^6.26.0",
     "babel-preset-env": "^1.6.0",
     "babel-register": "^6.26.0",
+    "concurrently": "^3.5.0",
     "fast-async": "^6.3.0",
     "json-loader": "^0.5.7",
     "nodemon": "^1.11.0",
@@ -54,7 +54,7 @@
   },
   "scripts": {
     "build": "NODE_ENV=production webpack -p --colors --progress && node dist/main.js",
-    "watch": "concurrently -n \"WEBPACK,SERVER \" -c \"bgBlue.bold,bgGreen.bold\" \"NODE_ENV=development webpack --hot --watch --colors --display errors-only\" \"nodemon dist/main.js\" ",
+    "watch": "concurrently -k -r \"NODE_ENV=development webpack --hot --watch --colors --display errors-only\" \"nodemon -q dist/main.js\" ",
     "start": "npm run watch",
     "dev": "npm run watch",
     "prod": "npm run build"
