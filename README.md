@@ -1,7 +1,8 @@
 # Beight Core
 A collaborative web editor built with Typescript, ES6 and WS.
+This is the backend/API for the Beight application. If you want the full experience, go to https://github.com/ChrisRu/beight-client and install the frontend.
 
-# Running
+# Setup
 1. Install Docker Compose
 
       If you don't have docker compose installed, follow the instructions on https://docs.docker.com/compose/install/
@@ -18,10 +19,19 @@ A collaborative web editor built with Typescript, ES6 and WS.
 
       `docker-compose build`
 
-4. Start the containers
+4. Everything should work now :)
+
+      Next up: running the dev server
+
+# Running
+
+1. Start the containers
 
       Start the containers by running the following command inside the root folder:
 
       `docker-compose up`
 
-5. Everything should work now :)
+2. Done :)
+
+      You can now edit the files and the server will automatically restart when a file changes.
+      Press CTRL+C to exit.
