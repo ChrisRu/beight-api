@@ -62,8 +62,9 @@
     "webpack-node-externals": "^1.6.0"
   },
   "scripts": {
-    "build": "NODE_ENV=production webpack -p --colors --progress && node dist/index.js",
+    "build": "NODE_ENV=production webpack -p --colors --progress",
     "watch": "NODE_ENV=development webpack --watch",
+    "start": "npm run build && node dist/index.js",
     "test": "eslint --ext .ts,.js src/**"
   }
 }
