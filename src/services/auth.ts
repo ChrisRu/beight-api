@@ -4,28 +4,30 @@ import { Strategy } from 'passport-local';
 import database from '@/components/database';
 import Logger from '@/services/logger';
 
+const logger = new Logger('auth');
+
 function getStrategy() {
   return new Strategy(async (username, password, done) =>
     database
       .query('SELECT * FROM account WHERE username = $1', [username])
       .then(async data => {
-        if (data.rows.length === 0) {
-          throw new Error('Username not found');
-        } else {
-          const success = await bcrypt.compare(password, data.rows[0].password);
-          if (success) {
-            return data.rows[0];
-          }
+        const user = data.rows[0];
 
-          throw new Error('Incorrect password');
+        if (!user) {
+          logger.warn(`Username ${username} not found`);
+          return done(new Error('Username not found'), false);
         }
-      })
-      .then(user => {
-        Logger.info('auth', `Logged in user: ${user.username}`);
-        return done(null, user);
+
+        if (await bcrypt.compare(password, user.password)) {
+          logger.info(`Logged in user: ${user.username}`);
+          return done(null, user);
+        }
+
+        logger.warn('Incorrect password');
+        return done(new Error('Incorrect password'), false);
       })
       .catch(error => {
-        Logger.warn('auth', `Can't login user: ${error}`);
+        logger.warn(`Can't login user: ${error}`);
         return done(error, false);
       })
   );

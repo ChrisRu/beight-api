@@ -9,18 +9,14 @@ const router = new Router();
 router
   // Get games
   .get('/games', async ctx => {
-    ctx.type = 'application/json';
     ctx.body = await database.getGames();
   })
   // Get game by guid
   .get('/games/:guid', async ctx => {
-    ctx.type = 'application/json';
     ctx.body = await database.getGame(ctx.params.guid);
   })
   // Create a new Game
   .post('/create', async ctx => {
-    ctx.type = 'application/json';
-
     if (ctx.isAuthenticated()) {
       await store
         .createGame(ctx.request.body)
@@ -36,24 +32,27 @@ router
   })
   // Check if user is logged in
   .get('/loggedin', ctx => {
-    ctx.type = 'application/json';
     ctx.body = { authenticated: ctx.isAuthenticated() };
   })
   // Log user out
   .post('/logout', ctx => {
     ctx.logout();
-    ctx.type = 'application/json';
     ctx.body = { authenticated: ctx.isAuthenticated() };
   })
   // Log user in
-  .post('/login', passport.authenticate('local'), ctx => {
-    ctx.type = 'application/json';
-    ctx.body = { authenticated: ctx.isAuthenticated() };
-  })
+  .post('/login', (ctx, next) =>
+    passport.authenticate('local', (error, user) => {
+      if (error) {
+        ctx.body = { success: false };
+        ctx.throw(401);
+      } else {
+        ctx.body = { success: true };
+        ctx.login(user);
+      }
+    })(ctx, next)
+  )
   // Sign up a new user
   .post('/signup', async ctx => {
-    ctx.type = 'application/json';
-
     const { username, password } = ctx.request.body;
 
     return store
