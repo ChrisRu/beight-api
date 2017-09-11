@@ -34,6 +34,13 @@ This application is MIT licensed
 
       `docker-compose up`
 
+2. Optionally, install the dev dependencies to get eslint and type support inside your prefered editor
+
+      - I recommend using [prettier](https://github.com/prettier/prettier) with [prettier-eslint](https://github.com/prettier/prettier-eslint) for code formatting.
+      - The editor I recommend is [VSCode](https://github.com/Microsoft/vscode). It's great for type support.
+
+      `npm install --only=dev`
+
 2. Done :)
 
       You can now edit the files and the server will automatically restart when a file changes.
