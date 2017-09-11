@@ -8,26 +8,26 @@ const router = new Router();
 
 router
   // Get games
-  .get('/games', async (ctx, next) => {
+  .get('/games', async ctx => {
     ctx.type = 'application/json';
     ctx.body = await database.getGames();
   })
   // Get game by guid
-  .get('/games/:guid', async (ctx, next) => {
+  .get('/games/:guid', async ctx => {
     ctx.type = 'application/json';
     ctx.body = await database.getGame(ctx.params.guid);
   })
   // Create a new Game
-  .post('/create', async (ctx, next) => {
+  .post('/create', async ctx => {
     ctx.type = 'application/json';
 
     if (ctx.isAuthenticated()) {
-      return store
+      await store
         .createGame(ctx.request.body)
         .then(games => {
           ctx.body = { guid: games[0].game };
         })
-        .catch(error => {
+        .catch(() => {
           ctx.body = { success: false, error: "Can't create game" };
         });
     } else {
@@ -35,23 +35,23 @@ router
     }
   })
   // Check if user is logged in
-  .get('/loggedin', (ctx, next) => {
+  .get('/loggedin', ctx => {
     ctx.type = 'application/json';
     ctx.body = { authenticated: ctx.isAuthenticated() };
   })
   // Log user out
-  .post('/logout', (ctx, next) => {
+  .post('/logout', ctx => {
     ctx.logout();
     ctx.type = 'application/json';
     ctx.body = { authenticated: ctx.isAuthenticated() };
   })
   // Log user in
-  .post('/login', passport.authenticate('local'), (ctx, next) => {
+  .post('/login', passport.authenticate('local'), ctx => {
     ctx.type = 'application/json';
     ctx.body = { authenticated: ctx.isAuthenticated() };
   })
   // Sign up a new user
-  .post('/signup', async (ctx, next) => {
+  .post('/signup', async ctx => {
     ctx.type = 'application/json';
 
     const { username, password } = ctx.request.body;
@@ -60,11 +60,9 @@ router
       .createUser(username, password)
       .then(() => {
         ctx.body = { success: true };
-        return;
       })
-      .catch(error => {
+      .catch(() => {
         ctx.body = { success: false };
-        return;
       });
   });
 

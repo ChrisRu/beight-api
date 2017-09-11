@@ -5,8 +5,8 @@ import database from '@/components/database';
 import Logger from '@/services/logger';
 
 function getStrategy() {
-  return new Strategy(async (username, password, done) => {
-    return database
+  return new Strategy(async (username, password, done) =>
+    database
       .query('SELECT * FROM account WHERE username = $1', [username])
       .then(async data => {
         if (data.rows.length === 0) {
@@ -15,9 +15,9 @@ function getStrategy() {
           const success = await bcrypt.compare(password, data.rows[0].password);
           if (success) {
             return data.rows[0];
-          } else {
-            throw new Error('Incorrect password');
           }
+
+          throw new Error('Incorrect password');
         }
       })
       .then(user => {
@@ -27,8 +27,8 @@ function getStrategy() {
       .catch(error => {
         Logger.warn('auth', `Can't login user: ${error}`);
         return done(error, false);
-      });
-  });
+      })
+  );
 }
 
 function deserializeUser(id, done) {

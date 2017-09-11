@@ -1,0 +1,48 @@
+{
+  "root": true,
+  "extends": "airbnb",
+  "parser": "typescript-eslint-parser",
+  "rules": {
+    "no-plusplus": 0,
+    "no-shadow": 0,
+    "linebreak-style": 0,
+    "no-use-before-define": 0,
+    "eqeqeq": [
+      "error",
+      "always",
+      {
+        "null": "ignore"
+      }
+    ],
+    "arrow-parens": ["error", "as-needed"],
+    "comma-dangle": ["error", "never"],
+    "valid-jsdoc": 0,
+    "import/prefer-default-export": 0,
+    "import/no-unresolved": 0,
+    "import/extensions": 0,
+    "import/no-extraneous-dependencies": 0,
+    "jsx-a11y/href-no-hash": 0,
+    "no-undef": 0,
+    "jsdoc/check-param-names": 1,
+    "jsdoc/check-tag-names": 1,
+    "jsdoc/check-types": 1,
+    "jsdoc/newline-after-description": 0,
+    "jsdoc/require-description-complete-sentence": 0,
+    "jsdoc/require-example": 0,
+    "jsdoc/require-hyphen-before-param-description": 0,
+    "jsdoc/require-param": 1,
+    "jsdoc/require-param-description": 1,
+    "jsdoc/require-param-type": 0,
+    "jsdoc/require-returns-description": 1,
+    "jsdoc/require-returns-type": 0,
+    // Don't check for indents, because the typescript-eslint-parser for @param in jsdoc comments is broken.
+    // Have no idea how to fix this better.
+    // Prettier will format it anyways :)
+    "indent": 0
+  },
+  "env": {
+    "node": true,
+    "es6": true
+  },
+  "plugins": ["jsdoc"]
+}

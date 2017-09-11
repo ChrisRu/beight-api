@@ -27,9 +27,17 @@ export function parseEdit(value: string, changes: EditOperation[]): string {
   }
 
   changes.forEach((change: EditOperation) => {
-    const { startLineNumber, endLineNumber, startColumn, endColumn } = change.range;
+    const {
+      startLineNumber,
+      endLineNumber,
+      startColumn,
+      endColumn
+    } = change.range;
 
-    let newLines: string[] = newValue.slice(startLineNumber - 1, endLineNumber);
+    const newLines: string[] = newValue.slice(
+      startLineNumber - 1,
+      endLineNumber
+    );
 
     const startLine: string = newLines[0].slice(0, startColumn - 1);
     const middleLine: string = change.text;
@@ -62,21 +70,27 @@ export function removeKeys(object: object, keys: string[]) {
 /**
  * Generate a Random URL
  * @param count URL Length
+ * @returns New URL
  */
 export function generateUrl(count: number): string {
   const characters = 'abcdefghijklmnopqrstuvwxyz1234567890_-';
-  const array = [...Array(count)].map(() => characters[Math.floor(Math.random() * characters.length)]);
+  const array = [...Array(count)].map(
+    () => characters[Math.floor(Math.random() * characters.length)]
+  );
   return array.join('');
 }
 
 /**
  * Run promises in serial
  * @param funcs Array of functions that return a promise
+ * @returns Promise when all promises have finished
  */
 export function serialPromise(funcs: (() => Promise<any>)[]) {
-  return funcs.reduce((promise, func) => {
-    return promise.then(result => func().then(Array.prototype.concat.bind(result)));
-  }, Promise.resolve([]));
+  return funcs.reduce(
+    (promise, func) =>
+      promise.then(result => func().then(Array.prototype.concat.bind(result))),
+    Promise.resolve([])
+  );
 }
 
 export function sleep(ms: number): Promise<void> {

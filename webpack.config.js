@@ -1,6 +1,7 @@
 const path = require('path');
 const webpack = require('webpack');
 const nodeExternals = require('webpack-node-externals');
+const NodemonPlugin = require('nodemon-webpack-plugin');
 
 const debug = process.env.NODE_ENV === 'development';
 
@@ -17,11 +18,11 @@ const config = {
     rules: [
       {
         test: /\.jsx?$/,
-        use: 'babel-loader'
+        use: ['babel-loader', 'eslint-loader']
       },
       {
         test: /\.tsx?$/,
-        use: ['babel-loader', 'ts-loader']
+        use: ['babel-loader', 'ts-loader', 'eslint-loader']
       },
       {
         test: /\.json$/,
@@ -39,11 +40,21 @@ const config = {
       raw: true,
       entryOnly: false
     })
-  ]
+  ],
+  stats: {
+    assets: false,
+    colors: true,
+    version: false,
+    hash: false,
+    timings: false,
+    chunks: false,
+    chunkModules: false
+  }
 };
 
 if (debug) {
   config.devtool = '#eval-source-map';
+  config.plugins.push(new NodemonPlugin());
 }
 
 module.exports = config;

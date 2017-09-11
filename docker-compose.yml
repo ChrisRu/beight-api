@@ -1,17 +1,19 @@
 version: '3.1'
+
 services:
   api:
     build: .
     hostname: api
-    command: npm run dev
+    command: npm run watch
     volumes:
-      - .:/usr/app
-      - /usr/app/node_modules
+      - ./src:/usr/app/src
+      - ./.env:/usr/app/.env
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
       - "${WEBSOCKET_PORT}:${WEBSOCKET_PORT}"
     depends_on:
       - db
+
   db:
     image: postgres:latest
     tmpfs:

@@ -1,7 +1,7 @@
-import { Pool, QueryResult } from 'pg';
+import { Pool } from 'pg';
 import { generateUrl, serialPromise, sleep } from '@/services/util';
 import Logger from '@/services/logger';
-import globals, { language } from '@/services/globals';
+import globals from '@/services/globals';
 
 export class Database {
   pool: Pool;
@@ -24,6 +24,7 @@ export class Database {
 
   /**
    * Connect to database
+   * @returns Promise that finishes when database is ready
    */
   async connect(): Promise<any> {
     return new Promise(resolve =>
@@ -35,17 +36,18 @@ export class Database {
             this.logger.info('Retrying to connect to database...');
             return this.connect();
           });
-        } else {
-          this.connected = true;
-          this.logger.info(
-            `Connected to database on postgres://${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`
-          );
-
-          return this.createTables(['Game', 'Stream', 'Account']).then(() => {
-            this.logger.info('All tables have (already) been created');
-            resolve();
-          });
         }
+
+        this.connected = true;
+        this.logger.info(
+          `Connected to database on postgres://${process.env
+            .DATABASE_HOST}:${process.env.DATABASE_PORT}`
+        );
+
+        return this.createTables(['Game', 'Stream', 'Account']).then(() => {
+          this.logger.info('All tables have (already) been created');
+          resolve();
+        });
       })
     );
   }
@@ -56,17 +58,19 @@ export class Database {
    * @param data Query data
    */
   query(query: string, data?: any[]): Promise<any> {
+    let newData = data;
+
     if (!query) {
       this.logger.error(`Query '${query}' is not valid`);
       return Promise.reject(`Query '${query}' is not valid`);
     }
 
-    if (data && !Array.isArray(data)) {
-      this.logger.warn(`Query data is not an array, converting`);
-      data = [].concat(data);
+    if (newData && !Array.isArray(newData)) {
+      this.logger.warn('Query data is not an array, converting');
+      newData = [].concat(data);
     }
 
-    return this.pool.query(query, data).catch(error => {
+    return this.pool.query(query, newData).catch(error => {
       this.logger.error(error);
     });
   }
@@ -127,9 +131,9 @@ export class Database {
       }
 
       return this.query(`SELECT to_regclass('${table.toLowerCase()}')`)
-        .then(res => {
+        .then(async res => {
           if (res.rows[0].to_regclass === null) {
-            return this[`create${table}Table`]();
+            await this[`create${table}Table`]();
           }
         })
         .catch(error => {
@@ -157,7 +161,7 @@ export class Database {
 
     return this.query(query)
       .then(() => {
-        this.logger.info(`Created table 'account' for users`);
+        this.logger.info("Created table 'account' for users");
       })
       .catch(error => {
         this.logger.error(`Can't create table: ${error}`);
@@ -178,7 +182,7 @@ export class Database {
 
     return this.query(query)
       .then(() => {
-        this.logger.info(`Created table 'game' for games`);
+        this.logger.info("Created table 'game' for games");
       })
       .catch(error => {
         this.logger.error(`Can't create table: ${error}`);
@@ -203,7 +207,7 @@ export class Database {
 
     return this.query(query)
       .then(() => {
-        this.logger.info(`Created table 'stream' for streams`);
+        this.logger.info("Created table 'stream' for streams");
       })
       .catch(error => {
         this.logger.error(`Can't create table: ${error}`);
@@ -215,16 +219,19 @@ export class Database {
    */
   getGames(): Promise<void | object[]> {
     const gameQuery = 'SELECT id, guid FROM game ORDER BY date';
-    const streamQuery = 'SELECT id, language, active, value FROM stream WHERE game = $1';
+    const streamQuery =
+      'SELECT id, language, active, value FROM stream WHERE game = $1';
 
     return this.query(gameQuery)
       .then(data =>
         Promise.all(
           data.rows.map(async game => ({
             guid: game.guid,
-            streams: (await this.query(streamQuery, [game.id])).rows.map(item => ({
+            streams: (await this.query(streamQuery, [
+              game.id
+            ])).rows.map(item => ({
               ...item,
-              language: this.getLanguage(item.language)
+              language: Database.getLanguage(item.language)
             }))
           }))
         )
@@ -248,7 +255,12 @@ export class Database {
       'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1) ORDER BY id';
 
     return this.query(streamQuery, [guid])
-      .then(data => data.rows.map(item => ({ ...item, language: this.getLanguage(item.language) })))
+      .then(data =>
+        data.rows.map(item => ({
+          ...item,
+          language: Database.getLanguage(item.language)
+        }))
+      )
       .catch(error => {
         this.logger.error(`Can't get games ${error}`);
       });
@@ -257,13 +269,13 @@ export class Database {
   /**
    * Get language info by identifier
    * @param id Language identifier
+   * @returns Found Language
    */
-  getLanguage(id: number | string): language {
+  static getLanguage(id: number | string) {
     if (typeof id === 'number') {
-      return globals.languages.find(language => language.id === id);
-    } else {
-      return globals.languages.find(language => language.name === id);
+      return globals.languages.find(lang => lang.id === id);
     }
+    return globals.languages.find(lang => lang.name === id);
   }
 
   /**
@@ -272,7 +284,9 @@ export class Database {
   async getUnusedGuid(): Promise<string> {
     const url = generateUrl(6);
 
-    return this.query(`SELECT guid FROM game WHERE guid = $1`, [url]).then(data => {
+    return this.query('SELECT guid FROM game WHERE guid = $1', [
+      url
+    ]).then(data => {
       if (data.rows.length === 0) {
         return url;
       }

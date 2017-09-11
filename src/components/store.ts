@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import database from '@/components/database';
+import database, { Database } from '@/components/database';
 import { Message } from '@/components/ws';
 import { parseEdit } from '@/services/util';
 import Logger from '@/services/logger';
@@ -41,6 +41,7 @@ export class Store {
 
   /**
    * Connect to the database and fetch games + streams
+   * @returns All streams
    */
   async connect() {
     await database.connect();
@@ -55,7 +56,10 @@ export class Store {
       )
       .then(streams => {
         streams.rows.forEach(stream => {
-          if (this.games.hasOwnProperty(stream.guid) === false) {
+          if (
+            Object.prototype.hasOwnProperty.call(this.games, stream.guid) ===
+            false
+          ) {
             this.games[stream.guid] = {};
           }
           this.games[stream.guid][stream.id] = {
@@ -88,7 +92,9 @@ export class Store {
       game,
       streams
     });
-    this.logger.info(`User ${id} subscribed on game ${game} to streams: ${streams.join(', ')}`);
+    this.logger.info(
+      `User ${id} subscribed on game ${game} to streams: ${streams.join(', ')}`
+    );
     return streams;
   }
 
@@ -98,7 +104,9 @@ export class Store {
    * @returns Connection identifier
    */
   removeConnection(id: string): string {
-    const index = this.connections.findIndex(connection => connection.id === id);
+    const index = this.connections.findIndex(
+      connection => connection.id === id
+    );
     if (index > -1) {
       this.connections.splice(index, 1);
     }
@@ -116,13 +124,12 @@ export class Store {
     if (this.games[game][stream]) {
       this.games[game][stream].value = value;
       this.logStreamValue(stream);
-      database.query('UPDATE stream SET value = $1 WHERE id = $2 AND game in (SELECT id FROM game WHERE guid = $3)', [
-        value,
-        stream,
-        game
-      ]);
-      return value;
+      database.query(
+        'UPDATE stream SET value = $1 WHERE id = $2 AND game in (SELECT id FROM game WHERE guid = $3)',
+        [value, stream, game]
+      );
     }
+    return value;
   }
 
   /**
@@ -136,9 +143,15 @@ export class Store {
     if (this.games[game][stream]) {
       this.games[game][stream].lastChange = item;
       this.games[game][stream].changeCount++;
-      this.setValue(game, stream, parseEdit(this.games[game][stream].value, item.change.changes));
+      this.setValue(
+        game,
+        stream,
+        parseEdit(this.games[game][stream].value, item.change.changes)
+      );
     } else {
-      this.logger.warn(`Can't add change game ${game} stream ${stream} is undefined`);
+      this.logger.warn(
+        `Can't add change game ${game} stream ${stream} is undefined`
+      );
     }
     return item;
   }
@@ -146,20 +159,29 @@ export class Store {
   /**
    * Create a new game
    * @param values Stream create data
+   * @returns All new streams
    */
   async createGame(values): Promise<Stream[]> {
     const guid = await database.getUnusedGuid();
-    const answer = await database.query(`INSERT INTO game(guid) VALUES($1) RETURNING id, guid`, [guid]).catch(error => {
-      this.logger.error(`Can't create game: ${error}`);
-      throw new Error(`Can't create game: ${error}`);
-    });
+    const answer = await database
+      .query('INSERT INTO game(guid) VALUES($1) RETURNING id, guid', [guid])
+      .catch(error => {
+        this.logger.error(`Can't create game: ${error}`);
+        throw new Error(`Can't create game: ${error}`);
+      });
 
     const { id } = answer.rows[0];
     this.streamCount[guid] = 0;
     this.games[guid] = {};
 
     const streams: Stream[] = values.map(value =>
-      this.createStream(id, guid, database.getLanguage(value.name).id, value.active, value.content)
+      this.createStream(
+        id,
+        guid,
+        Database.getLanguage(value.name).id,
+        value.active,
+        value.content
+      )
     );
 
     return Promise.all(streams)
@@ -262,11 +284,11 @@ export class Store {
    */
   get streamIdentifiers(): string[] {
     return [].concat(
-      ...Object.values(this.games).map(game => {
-        return Object.keys(game).map(stream => {
-          return game[stream].game + '_' + game[stream].id;
-        });
-      })
+      ...Object.values(this.games).map(game =>
+        Object.keys(game).map(
+          stream => `${game[stream].game}_${game[stream].id}`
+        )
+      )
     );
   }
   /**

@@ -1,9 +1,8 @@
 import * as http from 'http';
 import * as ws from 'ws';
-import * as uuid from 'uuid';
 import Logger from '@/services/logger';
 import app from '@/components/app';
-import store, { Stream } from '@/components/store';
+import store from '@/components/store';
 
 export interface Message {
   game: string;
@@ -31,16 +30,14 @@ export class WebSocketServer {
       perMessageDeflate: true
     });
 
-    this.wss.on('connection', socket => {
-      socket.id = uuid.v4();
-
+    this.wss.on('connection', async socket => {
       this.logger.info(`User ${socket.id} connected`);
 
       socket.on('message', (message: string) => {
         let parsedMessage;
         try {
           parsedMessage = JSON.parse(message);
-        } catch {
+        } catch (error) {
           this.logger.error(`Can't parse socket message from ${socket.id}`);
           return;
         }
@@ -66,7 +63,12 @@ export class WebSocketServer {
            * Get latest change
            */
           case 'latest':
-            this.sendValue(data.game, data.streams[0], socket, store.games[data.game][data.streams[0]].lastChange);
+            this.sendValue(
+              data.game,
+              data.streams[0],
+              socket,
+              store.games[data.game][data.streams[0]].lastChange
+            );
             break;
           /**
            * Send info about user and send full stream values
@@ -82,7 +84,9 @@ export class WebSocketServer {
             this.updateStreamValue(socket.id, data);
             break;
           default:
-            this.logger.warn(`User ${socket.id} sent message with unknown type ${data.type.toString()}`);
+            this.logger.warn(
+              `User ${socket.id} sent message with unknown type ${data.type.toString()}`
+            );
             break;
         }
       });
@@ -94,14 +98,14 @@ export class WebSocketServer {
     });
 
     this.server.listen(this.port, () => {
-      const interval = setInterval(() => {
+      setInterval(() => {
         this.wss.clients.forEach(socket => {
           try {
             socket.ping('', false, false);
           } catch (error) {
             store.removeConnection(socket.id);
             this.logger.warn(`Lost connection to user ${socket.id}`);
-            return socket.terminate();
+            socket.terminate();
           }
         });
       }, 30000);
@@ -112,11 +116,12 @@ export class WebSocketServer {
 
   /**
    * Send the full value of multiple streams to the socket
+   * @param game Game identifier
    * @param streams Stream identifiers
    * @param socket Socket target
    */
   sendStreamsValues(game: string, streams: number[], socket): void {
-    const streamStrings = streams.map((stream, index) => `${game}_${stream}`);
+    const streamStrings = streams.map(stream => `${game}_${stream}`);
     store.streamIdentifiers.forEach(stream => {
       const index = streamStrings.indexOf(stream);
       if (index > -1) {
@@ -130,6 +135,7 @@ export class WebSocketServer {
    * @param game Game identifier
    * @param stream Stream identifier
    * @param socket Socket target
+   * @param value Message to send to the socket
    */
   sendValue(game: string, stream: number, socket: any, value?: Message): void {
     if (!game || !stream) {
@@ -163,12 +169,14 @@ export class WebSocketServer {
    * @param socket Socket to send to
    */
   refetch(game: string, stream: number, socket: any) {
-    this.logger.info(`Sending value of game ${game} to stream ${stream} to user ${socket.id}`);
+    this.logger.info(
+      `Sending value of game ${game} to stream ${stream} to user ${socket.id}`
+    );
     this.sendValue(game, stream, socket, {
       full: store.games[game][stream].value,
       number: store.nextId(game, stream),
       streams: [stream],
-      game: game
+      game
     });
   }
 
@@ -178,12 +186,19 @@ export class WebSocketServer {
    * @param message Edit object
    */
   updateStreamValue(id: string, message: Message): void {
-    if (message.game == null || message.streams == null || message.streams[0] == null) {
+    if (
+      message.game == null ||
+      message.streams == null ||
+      message.streams[0] == null
+    ) {
       this.logger.warn('User did not supply game or stream identifier');
       return;
     }
 
-    if (store.games[message.game] == null || store.games[message.game][message.streams[0]] == null) {
+    if (
+      store.games[message.game] == null ||
+      store.games[message.game][message.streams[0]] == null
+    ) {
       this.logger.warn('Game or stream does not exist');
       return;
     }
@@ -194,16 +209,28 @@ export class WebSocketServer {
     });
 
     this.wss.clients.forEach(socket => {
-      const connection = store.connections.find(conn => conn.id === socket.id) || {
-        id: null,
-        streams: [],
-        game: 'null'
-      };
+      let connection = store.connections.find(conn => conn.id === socket.id);
+
+      if (connection === undefined) {
+        connection = {
+          id: null,
+          streams: [],
+          game: 'null'
+        };
+      }
+
       const streams: number[] = connection.streams;
 
-      if (connection.game === message.game && streams.includes(message.streams[0]) && socket.id !== item.origin) {
+      if (
+        connection.game === message.game &&
+        streams.includes(message.streams[0]) &&
+        socket.id !== item.origin
+      ) {
         this.sendValue(message.game, message.streams[0], socket, item);
-        this.logger.info(`Sent stream ${message.streams[0]} from game ${message.game} value from ${item.origin} to ${socket.id}`);
+        this.logger.info(
+          `Sent stream ${message
+            .streams[0]} from game ${message.game} value from ${item.origin} to ${socket.id}`
+        );
       }
     });
   }
