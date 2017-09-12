@@ -42,7 +42,7 @@ router
   // Log user in
   .post('/login', (ctx, next) =>
     passport.authenticate('local', (error, user) => {
-      if (error) {
+      if (error || !user) {
         ctx.body = { success: false };
         ctx.throw(401);
       } else {
