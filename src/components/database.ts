@@ -260,10 +260,16 @@ export class Database {
           ...item,
           language: Database.getLanguage(item.language)
         }))
-      )
-      .catch(error => {
-        this.logger.error(`Can't get games ${error}`);
-      });
+      );
+  }
+
+  findUser(username: string): Promise<any> {
+    if (!username) {
+      this.logger.error(`Username '${username}' is not valid`);
+      return Promise.reject(`Username '${username}' is not valid`);
+    }
+
+    return this.query('SELECT username FROM account WHERE username = $1', [username]);
   }
 
   /**

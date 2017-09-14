@@ -7,16 +7,15 @@ import store from '@/components/store';
 const router = new Router();
 
 router
-  // Get games
   .get('/games', async ctx => {
     ctx.body = await database.getGames();
   })
-  // Get game by guid
   .get('/games/:guid', async ctx => {
-    ctx.body = await database.getGame(ctx.params.guid);
+    ctx.body = await database.getGame(ctx.params.guid).catch(() => {
+      ctx.throw(404);
+    });
   })
-  // Create a new Game
-  .post('/create', async ctx => {
+  .post('/games/create', async ctx => {
     if (ctx.isAuthenticated()) {
       await store
         .createGame(ctx.request.body)
@@ -31,16 +30,16 @@ router
     }
   })
   // Check if user is logged in
-  .get('/loggedin', ctx => {
+  .get('/auth/loggedin', ctx => {
     ctx.body = { authenticated: ctx.isAuthenticated() };
   })
   // Log user out
-  .post('/logout', ctx => {
+  .post('/auth/logout', ctx => {
     ctx.logout();
     ctx.body = { authenticated: ctx.isAuthenticated() };
   })
   // Log user in
-  .post('/login', (ctx, next) =>
+  .post('/auth/login', (ctx, next) =>
     passport.authenticate('local', (error, user) => {
       if (error || !user) {
         ctx.body = { success: false };
@@ -52,7 +51,7 @@ router
     })(ctx, next)
   )
   // Sign up a new user
-  .post('/signup', async ctx => {
+  .post('/auth/signup', ctx => {
     const { username, password } = ctx.request.body;
 
     return store
@@ -63,6 +62,19 @@ router
       .catch(() => {
         ctx.body = { success: false };
       });
+  })
+  // Check if username exists
+  .get('/exists/username/:username', async ctx => {
+    const data = await database
+      .findUser(ctx.params.username)
+      .catch(() => ({ rows: [] }));
+    const user = data.rows && data.rows[0];
+
+    if (user) {
+      ctx.body = { exists: true };
+    } else {
+      ctx.body = { exists: false };
+    }
   });
 
 app.use(router.routes()).use(router.allowedMethods());
