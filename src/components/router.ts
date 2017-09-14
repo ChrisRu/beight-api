@@ -17,14 +17,21 @@ router
   })
   .post('/games/create', async ctx => {
     if (ctx.isAuthenticated()) {
+      const { body } = ctx.request;
+      if (Object.prototype.toString.call(body) !== '[object Array]') {
+        ctx.body = { success: false, error: 'Bad request' };
+        ctx.throw(400);
+        return;
+      }
+
       await store
-        .createGame(ctx.request.body)
+        .createGame(body)
         .then(games => {
           ctx.body = { guid: games[0].game };
         })
         .catch(() => {
           ctx.body = { success: false, error: "Can't create game" };
-          ctx.throw(400);
+          ctx.throw(501);
         });
     } else {
       ctx.body = { success: false, error: 'Unauthorized' };

@@ -217,7 +217,7 @@ export class Store {
    * @param values Stream create data
    * @returns All new streams
    */
-  async createGame(values): Promise<void | Stream[]> {
+  async createGame(values: any[]): Promise<void | Stream[]> {
     const guid = await database.getUnusedGuid();
     const answer = await database
       .query('INSERT INTO game(guid) VALUES($1) RETURNING id, guid', [guid])
@@ -233,7 +233,7 @@ export class Store {
     this.streamCount[guid] = 0;
     this.games[guid] = {};
 
-    const streams: Stream[] = values.map(value =>
+    const streams = values.map(value =>
       this.createStream(
         answer.rows[0].id,
         guid,
