@@ -44,8 +44,9 @@ export class Database {
             .DATABASE_HOST}:${process.env.DATABASE_PORT}`
         );
 
-        return this.createTables(['Game', 'Stream', 'Account']).then(() => {
-          this.logger.info('All tables have (already) been created');
+        return this.createTables(['Game', 'Stream', 'Account']).then(count => {
+          const already = count > 0 ? ' ' : 'already ';
+          this.logger.info(`All tables have ${already}been created`);
           resolve();
         });
       })
@@ -123,7 +124,9 @@ export class Database {
    * Create tables if they don't exist
    * @param tables Table names
    */
-  async createTables(tables: string[]): Promise<Promise<any>[]> {
+  async createTables(tables: string[]): Promise<number> {
+    let createCount = 0;
+
     const getPromise = (table: string) => (): Promise<any> => {
       if (!table) {
         this.logger.error(`Table '${table}' is not valid`);
@@ -133,6 +136,7 @@ export class Database {
       return this.query(`SELECT to_regclass('${table.toLowerCase()}')`)
         .then(async res => {
           if (res.rows[0].to_regclass === null) {
+            createCount++;
             await this[`create${table}Table`]();
           }
         })
@@ -143,7 +147,9 @@ export class Database {
 
     this.logger.info("Creating tables if they don't exist");
 
-    return serialPromise((tables || []).map(table => getPromise(table)));
+    await serialPromise((tables || []).map(table => getPromise(table)));
+
+    return createCount;
   }
 
   /**
@@ -254,13 +260,12 @@ export class Database {
     const streamQuery =
       'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1) ORDER BY id';
 
-    return this.query(streamQuery, [guid])
-      .then(data =>
-        data.rows.map(item => ({
-          ...item,
-          language: Database.getLanguage(item.language)
-        }))
-      );
+    return this.query(streamQuery, [guid]).then(data =>
+      data.rows.map(item => ({
+        ...item,
+        language: Database.getLanguage(item.language)
+      }))
+    );
   }
 
   findUser(username: string): Promise<any> {
@@ -269,7 +274,9 @@ export class Database {
       return Promise.reject(`Username '${username}' is not valid`);
     }
 
-    return this.query('SELECT username FROM account WHERE username = $1', [username]);
+    return this.query('SELECT username FROM account WHERE username = $1', [
+      username
+    ]);
   }
 
   /**
