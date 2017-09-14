@@ -1,7 +1,6 @@
 import { Pool } from 'pg';
 import { generateUrl, serialPromise, sleep } from '@/services/util';
 import Logger from '@/services/logger';
-import globals from '@/services/globals';
 
 export class Database {
   pool: Pool;
@@ -71,9 +70,7 @@ export class Database {
       newData = [].concat(data);
     }
 
-    return this.pool.query(query, newData).catch(error => {
-      this.logger.error(error);
-    });
+    return this.pool.query(query, newData);
   }
 
   /**
@@ -220,54 +217,6 @@ export class Database {
       });
   }
 
-  /**
-   * Get all active games sorted by date
-   */
-  getGames(): Promise<void | object[]> {
-    const gameQuery = 'SELECT id, guid FROM game ORDER BY date';
-    const streamQuery =
-      'SELECT id, language, active, value FROM stream WHERE game = $1';
-
-    return this.query(gameQuery)
-      .then(data =>
-        Promise.all(
-          data.rows.map(async game => ({
-            guid: game.guid,
-            streams: (await this.query(streamQuery, [
-              game.id
-            ])).rows.map(item => ({
-              ...item,
-              language: Database.getLanguage(item.language)
-            }))
-          }))
-        )
-      )
-      .catch(error => {
-        this.logger.error(`Can't get games ${error}`);
-      });
-  }
-
-  /**
-   * Get game by guid
-   * @param guid Game guid
-   */
-  getGame(guid): Promise<void | object[]> {
-    if (!guid) {
-      this.logger.error(`GUID '${guid}' is not valid`);
-      return Promise.reject(`GUID '${guid}' is not valid`);
-    }
-
-    const streamQuery =
-      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1) ORDER BY id';
-
-    return this.query(streamQuery, [guid]).then(data =>
-      data.rows.map(item => ({
-        ...item,
-        language: Database.getLanguage(item.language)
-      }))
-    );
-  }
-
   findUser(username: string): Promise<any> {
     if (!username) {
       this.logger.error(`Username '${username}' is not valid`);
@@ -280,19 +229,8 @@ export class Database {
   }
 
   /**
-   * Get language info by identifier
-   * @param id Language identifier
-   * @returns Found Language
-   */
-  static getLanguage(id: number | string) {
-    if (typeof id === 'number') {
-      return globals.languages.find(lang => lang.id === id);
-    }
-    return globals.languages.find(lang => lang.name === id);
-  }
-
-  /**
    * Get a new unused GUID
+   * @returns New unused GUID
    */
   async getUnusedGuid(): Promise<string> {
     const url = generateUrl(6);

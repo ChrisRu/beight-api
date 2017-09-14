@@ -1,7 +1,8 @@
 import * as bcrypt from 'bcrypt';
-import database, { Database } from '@/components/database';
+import database from '@/components/database';
 import { Message } from '@/components/ws';
 import { parseEdit } from '@/services/util';
+import { getLanguage } from '@/services/globals';
 import Logger from '@/services/logger';
 
 export interface Stream {
@@ -43,7 +44,7 @@ export class Store {
    * Connect to the database and fetch games + streams
    * @returns All streams
    */
-  async connect() {
+  async connect(): Promise<Stream[]> {
     await database.connect();
     return database
       .query(
@@ -55,14 +56,16 @@ export class Store {
       `
       )
       .then(streams => {
-        streams.rows.forEach(stream => {
-          if (
-            Object.prototype.hasOwnProperty.call(this.games, stream.guid) ===
-            false
-          ) {
+        if (streams.rows[0]) {
+          this.streamCount[streams.rows[0].guid] = streams.rows.length;
+        }
+
+        return streams.rows.map(stream => {
+          if (!Object.prototype.hasOwnProperty.call(this.games, stream.guid)) {
             this.games[stream.guid] = {};
           }
-          this.games[stream.guid][stream.id] = {
+
+          const game: Stream = {
             lastChange: null,
             changeCount: 0,
             value: stream.value,
@@ -71,11 +74,13 @@ export class Store {
             game: stream.guid,
             id: stream.id
           };
+
+          this.games[stream.guid][stream.id] = game;
+          return game;
         });
-        if (streams.rows.length > 0) {
-          this.streamCount[streams.rows[0].guid] = streams.rows.length;
-        }
-        return streams;
+      })
+      .catch(error => {
+        this.logger.error(`Can't fetch games and streams: ${error}`);
       });
   }
 
@@ -87,11 +92,7 @@ export class Store {
    * @returns Streams to listen to
    */
   addConnection(id: string, game: string, streams: number[]): number[] {
-    this.connections.push({
-      id,
-      game,
-      streams
-    });
+    this.connections.push({ id, game, streams });
     this.logger.info(
       `User ${id} subscribed on game ${game} to streams: ${streams.join(', ')}`
     );
@@ -124,10 +125,14 @@ export class Store {
     if (this.games[game][stream]) {
       this.games[game][stream].value = value;
       this.logStreamValue(stream);
-      database.query(
-        'UPDATE stream SET value = $1 WHERE id = $2 AND game in (SELECT id FROM game WHERE guid = $3)',
-        [value, stream, game]
-      );
+      database
+        .query(
+          'UPDATE stream SET value = $1 WHERE id = $2 AND game in (SELECT id FROM game WHERE guid = $3)',
+          [value, stream, game]
+        )
+        .catch(error => {
+          this.logger.error(`Can't update strema value: ${error}`);
+        });
     }
     return value;
   }
@@ -140,7 +145,7 @@ export class Store {
    * @returns Change object
    */
   addChange(game: string, stream: number, item: Message): Message {
-    if (this.games[game][stream]) {
+    if (this.games[game] && this.games[game][stream]) {
       this.games[game][stream].lastChange = item;
       this.games[game][stream].changeCount++;
       this.setValue(
@@ -157,28 +162,82 @@ export class Store {
   }
 
   /**
+   * Get all active games sorted by date
+   * @returns All games sorted by date
+   */
+  getGames(): Promise<void | object[]> {
+    const gameQuery = 'SELECT id, guid FROM game ORDER BY date';
+    const streamQuery =
+      'SELECT id, language, active, value FROM stream WHERE game = $1';
+
+    return database
+      .query(gameQuery)
+      .then(data =>
+        Promise.all(
+          data.rows.map(async game => ({
+            guid: game.guid,
+            streams: (await database.query(streamQuery, [
+              game.id
+            ])).rows.map(item => ({
+              ...item,
+              language: getLanguage(item.language)
+            }))
+          }))
+        )
+      )
+      .catch(error => {
+        this.logger.error(`Can't get games ${error}`);
+      });
+  }
+
+  /**
+   * Get game by guid
+   * @param guid Game guid
+   * @returns Game
+   */
+  getGame(guid): Promise<void | object[]> {
+    if (!guid) {
+      this.logger.error(`GUID '${guid}' is not valid`);
+      return Promise.reject(`GUID '${guid}' is not valid`);
+    }
+
+    const streamQuery =
+      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1) ORDER BY id';
+
+    return database.query(streamQuery, [guid]).then(data =>
+      data.rows.map(item => ({
+        ...item,
+        language: getLanguage(item.language)
+      }))
+    );
+  }
+
+  /**
    * Create a new game
    * @param values Stream create data
    * @returns All new streams
    */
-  async createGame(values): Promise<Stream[]> {
+  async createGame(values): Promise<void | Stream[]> {
     const guid = await database.getUnusedGuid();
     const answer = await database
       .query('INSERT INTO game(guid) VALUES($1) RETURNING id, guid', [guid])
+      .then(data => {
+        this.logger.info(`Game ${data.rows[0].guid} created`);
+        return data;
+      })
       .catch(error => {
         this.logger.error(`Can't create game: ${error}`);
         throw new Error(`Can't create game: ${error}`);
       });
 
-    const { id } = answer.rows[0];
     this.streamCount[guid] = 0;
     this.games[guid] = {};
 
     const streams: Stream[] = values.map(value =>
       this.createStream(
-        id,
+        answer.rows[0].id,
         guid,
-        Database.getLanguage(value.name).id,
+        getLanguage(value.name).id,
         value.active,
         value.content
       )
@@ -186,13 +245,20 @@ export class Store {
 
     return Promise.all(streams)
       .then(data => {
-        this.logger.info(`Created game ${guid}`);
-        this.streamCount[data[0].game] = data.length;
+        this.logger.info(`Successfully created game ${guid} with ${data.length} streams`);
+        this.streamCount[guid] = data.length;
         return data;
       })
-      .catch(error => {
-        this.logger.error(`Can't create game: ${error}`);
-        throw new Error(`Can't create game: ${error}`);
+      .catch(async error => {
+        await database
+          .query('DELETE FROM game WHERE id = $1', [answer.rows[0].id])
+          .catch(error => {
+            this.logger.error(
+              `Can't delete game after stream create failure: ${error}`
+            );
+          });
+
+        throw error;
       });
   }
 
@@ -213,17 +279,21 @@ export class Store {
     value: string
   ): Promise<Stream> {
     this.streamCount[gameGuid]++;
-    const streamId = this.streamCount[gameGuid];
 
-    const answer = await database.query(
-      `
+    const answer = await database
+      .query(
+        `
       INSERT INTO
         stream(id, game, language, active, value)
         VALUES($1, $2, $3, $4, $5)
       RETURNING id
     `,
-      [streamId, gameId, language, active, value]
-    );
+        [this.streamCount[gameGuid], gameId, language, active, value]
+      )
+      .catch(error => {
+        this.logger.error(`Can't create stream: ${error}`);
+        throw new Error(`Can't create stream: ${error}`);
+      });
 
     const { id } = answer.rows[0];
 
@@ -275,7 +345,10 @@ export class Store {
    * @returns Change identifier
    */
   nextId(game: string, stream: number): number {
-    return this.games[game][stream].changeCount + 1;
+    if (this.games[game] && this.games[game][stream]) {
+      return this.games[game][stream].changeCount + 1;
+    }
+    return 0;
   }
 
   /**

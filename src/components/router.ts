@@ -8,10 +8,10 @@ const router = new Router();
 
 router
   .get('/games', async ctx => {
-    ctx.body = await database.getGames();
+    ctx.body = await store.getGames();
   })
   .get('/games/:guid', async ctx => {
-    ctx.body = await database.getGame(ctx.params.guid).catch(() => {
+    ctx.body = await store.getGame(ctx.params.guid).catch(() => {
       ctx.throw(404);
     });
   })
@@ -24,9 +24,11 @@ router
         })
         .catch(() => {
           ctx.body = { success: false, error: "Can't create game" };
+          ctx.throw(400);
         });
     } else {
       ctx.body = { success: false, error: 'Unauthorized' };
+      ctx.throw(401);
     }
   })
   // Check if user is logged in

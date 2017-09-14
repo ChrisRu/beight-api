@@ -88,4 +88,16 @@ const globals: globals = {
   ]
 };
 
+/**
+* Get language info by identifier
+* @param id Language identifier
+* @returns Found Language
+*/
+export function getLanguage(id: number | string) {
+  if (typeof id === 'number') {
+    return globals.languages.find(lang => lang.id === id);
+  }
+  return globals.languages.find(lang => lang.name === id);
+ }
+
 export default globals;
