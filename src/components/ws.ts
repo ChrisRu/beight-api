@@ -32,7 +32,7 @@ export class WebSocketServer {
     });
 
     this.wss.on('connection', async socket => {
-      socket.id = uuid.v4();
+      socket.id = uuid.v4(); // eslint-disable-line no-param-reassign
       this.logger.info(`User ${socket.id} connected`);
 
       socket.on('message', (message: string) => {
