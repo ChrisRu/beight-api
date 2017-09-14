@@ -43,8 +43,8 @@ export class Database {
             .DATABASE_HOST}:${process.env.DATABASE_PORT}`
         );
 
-        return this.createTables(['Game', 'Stream', 'Account']).then(count => {
-          const already = count > 0 ? ' ' : 'already ';
+        return this.createTables(['Account', 'Game', 'Stream']).then(count => {
+          const already = count > 0 ? '' : 'already ';
           this.logger.info(`All tables have ${already}been created`);
           resolve();
         });
@@ -177,9 +177,10 @@ export class Database {
   createGameTable(): Promise<any> {
     const query = `
       CREATE TABLE game (
-        id   serial    PRIMARY KEY,
-        guid text      UNIQUE NOT NULL,
-        date timestamp NOT NULL DEFAULT NOW()
+        id      serial    PRIMARY KEY,
+        account integer   NOT NULL REFERENCES account(id),
+        guid    text      UNIQUE NOT NULL,
+        date    timestamp NOT NULL DEFAULT NOW()
       )
     `;
 
@@ -202,6 +203,7 @@ export class Database {
         game      integer   NOT NULL REFERENCES game(id),
         language  integer   NOT NULL,
         active    boolean   NOT NULL DEFAULT FALSE,
+        player    integer   REFERENCES account(id),
         value     text      NOT NULL,
 
         PRIMARY KEY(id, game)

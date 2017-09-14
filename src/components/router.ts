@@ -25,7 +25,7 @@ router
       }
 
       await store
-        .createGame(body)
+        .createGame(ctx.state.user.id, body)
         .then(games => {
           ctx.body = { guid: games[0].game };
         })

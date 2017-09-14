@@ -28,7 +28,7 @@ export class WebSocketServer {
     this.server = http.createServer(app.callback());
     this.wss = new ws.Server({
       server: this.server,
-      perMessageDeflate: true
+      perMessageDeflate: false
     });
 
     this.wss.on('connection', async socket => {
@@ -69,7 +69,7 @@ export class WebSocketServer {
               data.game,
               data.streams[0],
               socket,
-              store.games[data.game][data.streams[0]].lastChange
+              store.games[data.game].streams[data.streams[0]].lastChange
             );
             break;
           /**
@@ -155,7 +155,7 @@ export class WebSocketServer {
       return;
     }
 
-    if (store.games[game][stream]) {
+    if (store.games[game].streams[stream]) {
       try {
         socket.send(JSON.stringify(value, null, 0));
       } catch (error) {
@@ -175,7 +175,7 @@ export class WebSocketServer {
       `Sending value of game ${game} to stream ${stream} to user ${socket.id}`
     );
     this.sendValue(game, stream, socket, {
-      full: store.games[game][stream].value,
+      full: store.games[game].streams[stream].value,
       number: store.nextId(game, stream),
       streams: [stream],
       game
@@ -199,7 +199,7 @@ export class WebSocketServer {
 
     if (
       store.games[message.game] == null ||
-      store.games[message.game][message.streams[0]] == null
+      store.games[message.game].streams[message.streams[0]] == null
     ) {
       this.logger.warn('Game or stream does not exist');
       return;

@@ -13,6 +13,7 @@ export interface Stream {
   active: boolean;
   game: string;
   id: number;
+  player: number;
 }
 
 export interface Connection {
@@ -24,7 +25,11 @@ export interface Connection {
 export class Store {
   games: {
     [gameGuid: string]: {
-      [streamId: number]: Stream;
+      guid: string;
+      owner: number;
+      streams: {
+        [streamId: number]: Stream;
+      };
     };
   };
   connections: Connection[];
@@ -49,7 +54,7 @@ export class Store {
     return database
       .query(
         `
-        SELECT stream.id, stream.language, stream.active, stream.value, game.guid
+        SELECT stream.id, stream.language, stream.active, stream.value, stream.player, game.guid, game.account as owner
         FROM stream
         JOIN game
         ON stream.game = game.id
@@ -62,21 +67,26 @@ export class Store {
 
         return streams.rows.map(stream => {
           if (!Object.prototype.hasOwnProperty.call(this.games, stream.guid)) {
-            this.games[stream.guid] = {};
+            this.games[stream.guid] = {
+              guid: stream.guid,
+              owner: stream.owner,
+              streams: {}
+            };
           }
 
-          const game: Stream = {
+          const newStream: Stream = {
             lastChange: null,
             changeCount: 0,
             value: stream.value,
             active: stream.active,
             language: stream.language,
             game: stream.guid,
-            id: stream.id
+            id: stream.id,
+            player: stream.player
           };
 
-          this.games[stream.guid][stream.id] = game;
-          return game;
+          this.games[stream.guid].streams[stream.id] = newStream;
+          return newStream;
         });
       })
       .catch(error => {
@@ -122,8 +132,8 @@ export class Store {
    * @returns Stream value
    */
   setValue(game: string, stream: number, value: string): string {
-    if (this.games[game][stream]) {
-      this.games[game][stream].value = value;
+    if (this.games[game].streams[stream]) {
+      this.games[game].streams[stream].value = value;
       this.logStreamValue(stream);
       database
         .query(
@@ -145,13 +155,13 @@ export class Store {
    * @returns Change object
    */
   addChange(game: string, stream: number, item: Message): Message {
-    if (this.games[game] && this.games[game][stream]) {
-      this.games[game][stream].lastChange = item;
-      this.games[game][stream].changeCount++;
+    if (this.games[game] && this.games[game].streams[stream]) {
+      this.games[game].streams[stream].lastChange = item;
+      this.games[game].streams[stream].changeCount++;
       this.setValue(
         game,
         stream,
-        parseEdit(this.games[game][stream].value, item.change.changes)
+        parseEdit(this.games[game].streams[stream].value, item.change.changes)
       );
     } else {
       this.logger.warn(
@@ -214,13 +224,17 @@ export class Store {
 
   /**
    * Create a new game
+   * @param user User identifier
    * @param values Stream create data
    * @returns All new streams
    */
-  async createGame(values: any[]): Promise<void | Stream[]> {
+  async createGame(user: number, values: any[]): Promise<void | Stream[]> {
     const guid = await database.getUnusedGuid();
     const answer = await database
-      .query('INSERT INTO game(guid) VALUES($1) RETURNING id, guid', [guid])
+      .query(
+        'INSERT INTO game(guid, account) VALUES($1, $2) RETURNING id, guid',
+        [guid, user]
+      )
       .then(data => {
         this.logger.info(`Game ${data.rows[0].guid} created`);
         return data;
@@ -231,7 +245,11 @@ export class Store {
       });
 
     this.streamCount[guid] = 0;
-    this.games[guid] = {};
+    this.games[guid] = {
+      guid,
+      owner: user,
+      streams: {}
+    };
 
     const streams = values.map(value =>
       this.createStream(
@@ -239,13 +257,16 @@ export class Store {
         guid,
         getLanguage(value.name).id,
         value.active,
+        user,
         value.content
       )
     );
 
     return Promise.all(streams)
       .then(data => {
-        this.logger.info(`Successfully created game ${guid} with ${data.length} streams`);
+        this.logger.info(
+          `Successfully created game ${guid} with ${data.length} streams`
+        );
         this.streamCount[guid] = data.length;
         return data;
       })
@@ -268,6 +289,7 @@ export class Store {
    * @param gameGuid Game guid
    * @param language Language identifier
    * @param active Stream is being played
+   * @param player User identifier
    * @param value Initial stream value
    * @returns Stream identifier
    */
@@ -276,6 +298,7 @@ export class Store {
     gameGuid: string,
     language: number,
     active: boolean,
+    player: number,
     value: string
   ): Promise<Stream> {
     this.streamCount[gameGuid]++;
@@ -306,9 +329,10 @@ export class Store {
       language,
       active,
       id,
+      player,
       game: gameGuid
     };
-    this.games[gameGuid][id] = stream;
+    this.games[gameGuid].streams[id] = stream;
     return stream;
   }
 
@@ -345,8 +369,8 @@ export class Store {
    * @returns Change identifier
    */
   nextId(game: string, stream: number): number {
-    if (this.games[game] && this.games[game][stream]) {
-      return this.games[game][stream].changeCount + 1;
+    if (this.games[game] && this.games[game].streams[stream]) {
+      return this.games[game].streams[stream].changeCount + 1;
     }
     return 0;
   }
@@ -358,8 +382,8 @@ export class Store {
   get streamIdentifiers(): string[] {
     return [].concat(
       ...Object.values(this.games).map(game =>
-        Object.keys(game).map(
-          stream => `${game[stream].game}_${game[stream].id}`
+        Object.keys(game.streams).map(
+          stream => `${game.streams[stream].game}_${game.streams[stream].id}`
         )
       )
     );

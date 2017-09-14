@@ -15,7 +15,7 @@ function getStrategy() {
 
         if (!user) {
           logger.warn(`Username ${username} not found`);
-          return done(new Error('Username not found'), false);
+          return done(new Error(`Username ${username} not found`), false);
         }
 
         if (await bcrypt.compare(password, user.password)) {
@@ -36,8 +36,11 @@ function getStrategy() {
 function deserializeUser(id, done) {
   return database
     .query('SELECT * FROM account WHERE id = $1', [id])
-    .then(user => done(null, user))
-    .catch(error => done(error, false));
+    .then(data => done(null, data.rows[0] || false))
+    .catch(error => {
+      logger.warn(`Can't deserialize user ${id}: ${error}`);
+      done(error, false);
+    });
 }
 
 function serializeUser(user, done) {
