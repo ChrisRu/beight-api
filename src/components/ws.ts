@@ -1,5 +1,6 @@
 import * as http from 'http';
 import * as ws from 'ws';
+import * as uuid from 'uuid';
 import Logger from '@/services/logger';
 import app from '@/components/app';
 import store from '@/components/store';
@@ -31,6 +32,7 @@ export class WebSocketServer {
     });
 
     this.wss.on('connection', async socket => {
+      socket.id = uuid.v4();
       this.logger.info(`User ${socket.id} connected`);
 
       socket.on('message', (message: string) => {
