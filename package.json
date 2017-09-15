@@ -52,6 +52,8 @@
     "eslint-plugin-jsx-a11y": "^5.1.1",
     "eslint-plugin-react": "^7.3.0",
     "fast-async": "^6.3.0",
+    "fork-ts-checker-webpack-plugin": "^0.2.8",
+    "happypack": "^4.0.0",
     "json-loader": "^0.5.7",
     "nodemon-webpack-plugin": "^0.1.2",
     "object-assign": "^4.1.1",
