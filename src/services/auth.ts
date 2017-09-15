@@ -6,6 +6,10 @@ import Logger from '@/services/logger';
 
 const logger = new Logger('auth');
 
+/**
+ * Get the local strategy
+ * @returns Local strategy
+ */
 function getStrategy() {
   return new Strategy(async (username, password, done) =>
     database
@@ -33,6 +37,12 @@ function getStrategy() {
   );
 }
 
+/**
+ * Deserialize the user
+ * @param id User identifier
+ * @param done Callback
+ * @returns Promise deserialize
+ */
 function deserializeUser(id, done) {
   return database
     .query('SELECT * FROM account WHERE id = $1', [id])
@@ -43,6 +53,12 @@ function deserializeUser(id, done) {
     });
 }
 
+/**
+ * Serialize the user
+ * @param user User data
+ * @param done Callback
+ * @returns The executed callback
+ */
 function serializeUser(user, done) {
   return done(null, user.id);
 }
