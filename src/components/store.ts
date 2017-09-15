@@ -175,29 +175,10 @@ export class Store {
    * Get all active games sorted by date
    * @returns All games sorted by date
    */
-  getGames(): Promise<void | object[]> {
-    const gameQuery = 'SELECT id, guid FROM game ORDER BY date';
-    const streamQuery =
-      'SELECT id, language, active, value FROM stream WHERE game = $1';
-
-    return database
-      .query(gameQuery)
-      .then(data =>
-        Promise.all(
-          data.rows.map(async game => ({
-            guid: game.guid,
-            streams: (await database.query(streamQuery, [
-              game.id
-            ])).rows.map(item => ({
-              ...item,
-              language: getLanguage(item.language)
-            }))
-          }))
-        )
-      )
-      .catch(error => {
-        this.logger.error(`Can't get games ${error}`);
-      });
+  getGames(): Promise<object[]> {
+    return Promise.all(
+      Object.values(this.games).map(({ guid }) => this.getGame(guid))
+    );
   }
 
   /**
@@ -205,21 +186,71 @@ export class Store {
    * @param guid Game guid
    * @returns Game
    */
-  getGame(guid): Promise<void | object[]> {
-    if (!guid) {
-      this.logger.error(`GUID '${guid}' is not valid`);
-      return Promise.reject(`GUID '${guid}' is not valid`);
-    }
+  getGame(guid: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!guid) {
+        this.logger.error(`GUID ${guid} is not valid`);
+        reject(`GUID ${guid} is not valid`);
+      }
 
-    const streamQuery =
-      'SELECT id, language, active, value FROM stream WHERE game in (SELECT id FROM game WHERE guid = $1) ORDER BY id';
+      if (!this.games[guid]) {
+        this.logger.error(`GUID ${guid} not found`);
+        reject(`GUID ${guid} not found`);
+      }
 
-    return database.query(streamQuery, [guid]).then(data =>
-      data.rows.map(item => ({
-        ...item,
-        language: getLanguage(item.language)
-      }))
-    );
+      resolve({
+        guid,
+        streams: {
+          ...Object.values(this.games[guid].streams).map((stream: Stream) => ({
+            ...stream,
+            language: getLanguage(stream.language)
+          }))
+        }
+      });
+    });
+  }
+
+  /**
+   * Get owner of game by guid
+   * @param game Game identifier
+   * @returns Owner identifier
+   */
+  getGameOwner(game: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (this.games[game]) {
+        resolve(this.games[game].owner);
+      }
+      reject(`Game ${game} not found`);
+    });
+  }
+
+  /**
+   * Get games by owner
+   * @param owner User identifier
+   * @returns Games
+   */
+  async getGamesByOwner(owner: number): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!owner) {
+        this.logger.error(`Owner ${owner} is not valid`);
+        reject(`Owner ${owner} is not valid`);
+      }
+
+      const games = Object.values(this.games).filter(
+        game => game.owner === owner
+      );
+
+      resolve(Promise.all(games.map(({ guid }) => this.getGame(guid))));
+    });
+  }
+
+  /**
+   * Edit existing game
+   * @param game Game identifier
+   * @param newData New data
+   */
+  async editGame(game: string, newData) {
+    return [game, newData];
   }
 
   /**

@@ -4,39 +4,80 @@ import app from '@/components/app';
 import database from '@/components/database';
 import store from '@/components/store';
 
+const authenticate = ctx =>
+  new Promise((resolve, reject) => {
+    if (ctx.isUnauthenticated()) {
+      const error = 'Unauthorized';
+      ctx.body = { error };
+      ctx.throw(401);
+      reject(error);
+    }
+    resolve();
+  });
+
 const router = new Router();
 
 router
+  // Get all games
   .get('/games', async ctx => {
     ctx.body = await store.getGames();
   })
-  .get('/games/:guid', async ctx => {
-    ctx.body = await store.getGame(ctx.params.guid).catch(() => {
-      ctx.throw(404);
-    });
-  })
-  .post('/games/create', async ctx => {
-    if (ctx.isAuthenticated()) {
-      const { body } = ctx.request;
-      if (Object.prototype.toString.call(body) !== '[object Array]') {
-        ctx.body = { success: false, error: 'Bad request' };
-        ctx.throw(400);
-        return;
-      }
+  // Get all games that are created by the user
+  .get('/games/manage', async ctx => {
+    await authenticate(ctx);
 
-      await store
-        .createGame(ctx.state.user.id, body)
-        .then(games => {
-          ctx.body = { guid: games[0].game };
-        })
-        .catch(() => {
-          ctx.body = { success: false, error: "Can't create game" };
-          ctx.throw(501);
-        });
-    } else {
-      ctx.body = { success: false, error: 'Unauthorized' };
-      ctx.throw(401);
+    await store
+      .getGamesByOwner(ctx.state.user.id)
+      .then(games => {
+        ctx.body = games;
+      })
+      .catch(error => {
+        ctx.body = { error };
+        ctx.throw(404);
+      });
+  })
+  // Get a game by guid
+  .get('/games/:guid', async ctx => {
+    await store
+      .getGame(ctx.params.guid)
+      .then(game => {
+        ctx.body = game;
+      })
+      .catch(() => {
+        ctx.throw(404);
+      });
+  })
+  // Edit an existing game
+  .post('/games/:guid/edit', async ctx => {
+    await authenticate(ctx);
+
+    const { guid } = ctx.params;
+    if (store.getGameOwner(guid) === ctx.state.user.id) {
+      ctx.body = await store.editGame(guid, ctx.body.request).catch(() => {
+        ctx.throw(404);
+      });
     }
+  })
+  // Create a new game
+  .post('/games/create', async ctx => {
+    await authenticate(ctx);
+
+    const { body } = ctx.request;
+
+    if (Object.prototype.toString.call(body) !== '[object Array]') {
+      ctx.body = { error: 'Bad request' };
+      ctx.throw(400);
+    }
+
+    await store
+      .createGame(ctx.state.user.id, body)
+      .then(games => {
+        ctx.body = { guid: games[0].game };
+      })
+      .catch(() => {
+        ctx.body = { error: "Can't create game" };
+        ctx.throw(501, ctx.body.error);
+      });
   })
   // Check if user is logged in
   .get('/auth/loggedin', ctx => {
@@ -60,10 +101,10 @@ router
     })(ctx, next)
   )
   // Sign up a new user
-  .post('/auth/signup', ctx => {
+  .post('/auth/signup', async ctx => {
     const { username, password } = ctx.request.body;
 
-    return store
+    await store
       .createUser(username, password)
       .then(() => {
         ctx.body = { success: true };
@@ -77,13 +118,10 @@ router
     const data = await database
       .findUser(ctx.params.username)
       .catch(() => ({ rows: [] }));
-    const user = data.rows && data.rows[0];
 
-    if (user) {
-      ctx.body = { exists: true };
-    } else {
-      ctx.body = { exists: false };
-    }
+    const userExists = data.rows[0] !== undefined;
+
+    ctx.body = { exists: userExists };
   });
 
 app.use(router.routes()).use(router.allowedMethods());
