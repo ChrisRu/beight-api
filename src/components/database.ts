@@ -56,6 +56,7 @@ export class Database {
    * Execute query to database
    * @param query Query to execute
    * @param data Query data
+   * @returns Promise query
    */
   query(query: string, data?: any[]): Promise<any> {
     let newData = data;
@@ -76,6 +77,7 @@ export class Database {
   /**
    * Drop a table in the database
    * @param table Table name
+   * @returns Promise query
    */
   dropTable(table: string): Promise<any> {
     if (!table) {
@@ -98,6 +100,7 @@ export class Database {
    * @param game Game identifier
    * @param stream Stream Identifier
    * @param value Stream value
+   * @returns Promise query
    */
   updateValue(game: number, stream: number, value: string): Promise<any> {
     if (!game || !stream) {
@@ -120,6 +123,7 @@ export class Database {
   /**
    * Create tables if they don't exist
    * @param tables Table names
+   * @returns Promise number of tables created
    */
   async createTables(tables: string[]): Promise<number> {
     let createCount = 0;
@@ -151,6 +155,7 @@ export class Database {
 
   /**
    * Create Account Table
+   * @returns Promise query
    */
   createAccountTable(): Promise<any> {
     const query = `
@@ -173,6 +178,7 @@ export class Database {
 
   /**
    * Create Game Table
+   * @returns Promise query
    */
   createGameTable(): Promise<any> {
     const query = `
@@ -195,6 +201,7 @@ export class Database {
 
   /**
    * Create Stream Table
+   * @returns Promise query
    */
   createStreamTable(): Promise<any> {
     const query = `
@@ -219,6 +226,11 @@ export class Database {
       });
   }
 
+  /**
+   * Get the user by username
+   * @param username Username of user
+   * @returns Promise username of the user if it exists
+   */
   findUser(username: string): Promise<any> {
     if (!username) {
       this.logger.error(`Username '${username}' is not valid`);
