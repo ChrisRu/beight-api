@@ -38,7 +38,8 @@
     // Don't check for indents, because the typescript-eslint-parser for @param in jsdoc comments is broken.
     // Have no idea how to fix this better.
     // Prettier will format it anyways :)
-    "indent": 0
+    "indent": 0,
+    "class-methods-use-this": 0
   },
   "env": {
     "node": true,
