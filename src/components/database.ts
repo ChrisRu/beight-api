@@ -134,7 +134,8 @@ export class Database {
         return Promise.reject(`Table '${table}' is not valid`);
       }
 
-      return this.query(`SELECT to_regclass('${table.toLowerCase()}')`)
+      const query = `SELECT to_regclass('${table.toLowerCase()}')`;
+      return this.query(query)
         .then(async res => {
           if (res.rows[0].to_regclass === null) {
             createCount++;
@@ -232,14 +233,35 @@ export class Database {
    * @returns Promise username of the user if it exists
    */
   findUser(username: string): Promise<any> {
-    if (!username) {
-      this.logger.error(`Username '${username}' is not valid`);
-      return Promise.reject(`Username '${username}' is not valid`);
-    }
+    return new Promise((resolve, reject) => {
+      if (!username) {
+        this.logger.error(`Username '${username}' is not valid`);
+        reject(`Username '${username}' is not valid`);
+      }
 
-    return this.query('SELECT username FROM account WHERE username = $1', [
-      username
-    ]);
+      const query = 'SELECT username FROM account WHERE username = $1';
+      resolve(this.query(query, [username]));
+    });
+  }
+
+  /**
+   * Find all users that start with username
+   * @param username Partial or whole username
+   * @returns Promise user
+   */
+  getUsers(username: string): Promise<any> {
+    const query = `
+      SELECT username
+      FROM users
+      WHERE username LIKE '$1%'
+    `;
+
+    return this.query(query, [username]).then(data =>
+      data.rows.map(user => ({
+        username: user.username,
+        exact: user.username === username
+      }))
+    );
   }
 
   /**
@@ -248,10 +270,9 @@ export class Database {
    */
   async getUnusedGuid(): Promise<string> {
     const url = generateUrl(6);
+    const query = 'SELECT guid FROM game WHERE guid = $1';
 
-    return this.query('SELECT guid FROM game WHERE guid = $1', [
-      url
-    ]).then(data => {
+    return this.query(query, [url]).then(data => {
       if (data.rows.length === 0) {
         return url;
       }

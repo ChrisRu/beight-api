@@ -51,27 +51,32 @@ export class Store {
    */
   async connect(): Promise<Stream[]> {
     await database.connect();
+
+    const query = `
+      SELECT stream.id, stream.language, stream.active, stream.value, stream.player, game.guid, game.account as owner
+      FROM stream
+      JOIN game
+      ON stream.game = game.id
+    `;
     return database
-      .query(
-        `
-        SELECT stream.id, stream.language, stream.active, stream.value, stream.player, game.guid, game.account as owner
-        FROM stream
-        JOIN game
-        ON stream.game = game.id
-      `
-      )
+      .query(query)
       .then(streams => {
         if (streams.rows[0]) {
           this.streamCount[streams.rows[0].guid] = streams.rows.length;
         }
 
-        return streams.rows.map(stream => {
+        return streams.rows.map(async stream => {
           if (!Object.prototype.hasOwnProperty.call(this.games, stream.guid)) {
             this.games[stream.guid] = {
               guid: stream.guid,
               owner: stream.owner,
               streams: {}
             };
+          }
+
+          let player = null;
+          if (stream.player != null) {
+            player = await database.findUser(stream.player).catch(() => null);
           }
 
           const newStream: Stream = {
@@ -82,7 +87,7 @@ export class Store {
             language: stream.language,
             game: stream.guid,
             id: stream.id,
-            player: stream.player
+            player
           };
 
           this.games[stream.guid].streams[stream.id] = newStream;
@@ -92,6 +97,20 @@ export class Store {
       .catch(error => {
         this.logger.error(`Can't fetch games and streams: ${error}`);
       });
+  }
+
+  /**
+   * Check if game or game and stream exist
+   * @param game Game identifier
+   * @param stream Stream identifier
+   * @returns If game or game and stream exist
+   */
+  streamExists(game: string, stream?: number) {
+    return !!(
+      game &&
+      this.games[game] &&
+      (stream ? this.games[game].streams[stream] : true)
+    );
   }
 
   /**
@@ -132,17 +151,18 @@ export class Store {
    * @returns Stream value
    */
   setValue(game: string, stream: number, value: string): string {
-    if (this.games[game].streams[stream]) {
+    if (this.streamExists(game, stream)) {
       this.games[game].streams[stream].value = value;
       this.logStreamValue(stream);
-      database
-        .query(
-          'UPDATE stream SET value = $1 WHERE id = $2 AND game in (SELECT id FROM game WHERE guid = $3)',
-          [value, stream, game]
-        )
-        .catch(error => {
-          this.logger.error(`Can't update strema value: ${error}`);
-        });
+
+      const query = `
+        UPDATE stream
+        SET value = $1
+        WHERE id = $2 AND game in (SELECT id FROM game WHERE guid = $3)
+      `;
+      database.query(query, [value, stream, game]).catch(error => {
+        this.logger.error(`Can't update strema value: ${error}`);
+      });
     }
     return value;
   }
@@ -155,7 +175,7 @@ export class Store {
    * @returns Change object
    */
   addChange(game: string, stream: number, item: Message): Message {
-    if (this.games[game] && this.games[game].streams[stream]) {
+    if (this.streamExists(game, stream)) {
       this.games[game].streams[stream].lastChange = item;
       this.games[game].streams[stream].changeCount++;
       this.setValue(
@@ -217,7 +237,7 @@ export class Store {
    */
   getGameOwner(game: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (this.games[game]) {
+      if (this.streamExists(game)) {
         resolve(this.games[game].owner);
       }
       reject(`Game ${game} not found`);
@@ -250,7 +270,42 @@ export class Store {
    * @param newData New data
    */
   async editGame(game: string, newData) {
-    return [game, newData];
+    const { streams } = newData;
+    Object.values(streams).forEach(async stream => {
+      if (stream.id && this.streamExists(game, stream.id)) {
+        const player = await database
+          .findUser(stream.playerName)
+          .catch(error => {
+            this.logger.error(`Can't find user ${stream.player}: ${error}`);
+          });
+        this.games[game].streams[stream.id].player = player;
+
+        const query = `
+          WITH game AS (
+            SELECT id FROM game WHERE guid = $1
+          )
+          UPDATE stream
+          SET
+            player = $3
+          FROM game
+          WHERE stream.game = game.id AND stream.id = $2
+        `;
+        await database
+          .query(query, [game, stream.id, player.id])
+          .then(() => {
+            this.logger.info(
+              `Updated player ${stream.playerName} for game ${game} on stream ${stream.id}`
+            );
+          })
+          .catch(error => {
+            this.logger.error(`Can't update stream info: ${error}`);
+          });
+      } else {
+        this.logger.warn(
+          'Failed editing game: player, stream id, or game and/or stream does not exist'
+        );
+      }
+    });
   }
 
   /**
@@ -261,11 +316,11 @@ export class Store {
    */
   async createGame(user: number, values: any[]): Promise<void | Stream[]> {
     const guid = await database.getUnusedGuid();
+
+    const query =
+      'INSERT INTO game(guid, account) VALUES($1, $2) RETURNING id, guid';
     const answer = await database
-      .query(
-        'INSERT INTO game(guid, account) VALUES($1, $2) RETURNING id, guid',
-        [guid, user]
-      )
+      .query(query, [guid, user])
       .then(data => {
         this.logger.info(`Game ${data.rows[0].guid} created`);
         return data;
@@ -302,13 +357,12 @@ export class Store {
         return data;
       })
       .catch(async error => {
-        await database
-          .query('DELETE FROM game WHERE id = $1', [answer.rows[0].id])
-          .catch(error => {
-            this.logger.error(
-              `Can't delete game after stream create failure: ${error}`
-            );
-          });
+        const query = 'DELETE FROM game WHERE id = $1';
+        await database.query(query, [answer.rows[0].id]).catch(error => {
+          this.logger.error(
+            `Can't delete game after stream create failure: ${error}`
+          );
+        });
 
         throw error;
       });
@@ -334,16 +388,20 @@ export class Store {
   ): Promise<Stream> {
     this.streamCount[gameGuid]++;
 
-    const answer = await database
-      .query(
-        `
+    const query = `
       INSERT INTO
         stream(id, game, language, active, value)
         VALUES($1, $2, $3, $4, $5)
       RETURNING id
-    `,
-        [this.streamCount[gameGuid], gameId, language, active, value]
-      )
+    `;
+    const answer = await database
+      .query(query, [
+        this.streamCount[gameGuid],
+        gameId,
+        language,
+        active,
+        value
+      ])
       .catch(error => {
         this.logger.error(`Can't create stream: ${error}`);
         throw new Error(`Can't create stream: ${error}`);
@@ -378,19 +436,16 @@ export class Store {
       throw new Error(`Can't hash password: ${error}`);
     });
 
-    return database
-      .query(
-        `
-        INSERT INTO
-          account(username, password)
-          VALUES($1, $2)
-      `,
-        [username, hashedPassword]
-      )
-      .catch(error => {
-        this.logger.error(`Can't create new user: ${error}`);
-        throw new Error(`Can't create new user: ${error}`);
-      });
+    const query = `
+      INSERT INTO
+        account(username, password)
+        VALUES ($1, $2)
+    `;
+
+    return database.query(query, [username, hashedPassword]).catch(error => {
+      this.logger.error(`Can't create new user: ${error}`);
+      throw new Error(`Can't create new user: ${error}`);
+    });
   }
 
   /**

@@ -53,9 +53,15 @@ router
 
     const { guid } = ctx.params;
     if (store.getGameOwner(guid) === ctx.state.user.id) {
-      ctx.body = await store.editGame(guid, ctx.body.request).catch(() => {
-        ctx.throw(404);
-      });
+      await store
+        .editGame(guid, ctx.request.body)
+        .then(() => {
+          ctx.body = { success: true };
+        })
+        .catch(() => {
+          ctx.body = { success: false, error: 'Incorrect data supplied (probably)' };
+          ctx.throw(404);
+        });
     }
   })
   // Create a new game
@@ -122,6 +128,11 @@ router
     const userExists = data.rows[0] !== undefined;
 
     ctx.body = { exists: userExists };
+  })
+  .get('/users/:username', async ctx => {
+    await authenticate(ctx);
+
+    ctx.body = database.getUsers(ctx.params.username);
   });
 
 app.use(router.routes()).use(router.allowedMethods());
