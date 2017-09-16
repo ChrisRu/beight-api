@@ -87,12 +87,12 @@ router
   })
   // Check if user is logged in
   .get('/auth/loggedin', ctx => {
-    ctx.body = { authenticated: ctx.isAuthenticated() };
+    ctx.body = { success: true, authenticated: ctx.isAuthenticated() };
   })
   // Log user out
   .post('/auth/logout', ctx => {
     ctx.logout();
-    ctx.body = { authenticated: ctx.isAuthenticated() };
+    ctx.body = { success: true, authenticated: ctx.isAuthenticated() };
   })
   // Log user in
   .post('/auth/login', (ctx, next) =>
