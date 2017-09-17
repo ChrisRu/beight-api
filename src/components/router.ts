@@ -59,7 +59,10 @@ router
           ctx.body = { success: true };
         })
         .catch(() => {
-          ctx.body = { success: false, error: 'Incorrect data supplied (probably)' };
+          ctx.body = {
+            success: false,
+            error: 'Incorrect data supplied (probably)'
+          };
           ctx.throw(404);
         });
     }
@@ -87,7 +90,11 @@ router
   })
   // Check if user is logged in
   .get('/auth/loggedin', ctx => {
-    ctx.body = { success: true, authenticated: ctx.isAuthenticated() };
+    ctx.body = {
+      success: true,
+      authenticated: ctx.isAuthenticated(),
+      username: ctx.state.user.username
+    };
   })
   // Log user out
   .post('/auth/logout', ctx => {
