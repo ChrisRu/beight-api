@@ -93,7 +93,7 @@ router
     ctx.body = {
       success: true,
       authenticated: ctx.isAuthenticated(),
-      username: ctx.state.user.username
+      username: ctx.isAuthenticated() ? ctx.state.user.username : null
     };
   })
   // Log user out
