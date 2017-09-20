@@ -239,7 +239,7 @@ export class Database {
         reject(`Username '${username}' is not valid`);
       }
 
-      const query = 'SELECT username FROM account WHERE username = $1';
+      const query = 'SELECT username FROM account WHERE LOWER(username) = LOWER($1)';
       resolve(this.query(query, [username]));
     });
   }

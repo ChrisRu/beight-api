@@ -13,7 +13,7 @@ const logger = new Logger('auth');
 function getStrategy() {
   return new Strategy(async (username, password, done) =>
     database
-      .query('SELECT * FROM account WHERE username = $1', [username])
+      .query('SELECT * FROM account WHERE LOWER(username) = LOWER($1)', [username])
       .then(async data => {
         const user = data.rows[0];
 
