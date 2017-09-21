@@ -1,6 +1,6 @@
 {
   "root": true,
-  "extends": ["airbnb", "prettier", "prettier/react"],
+  "extends": ["airbnb", "prettier"],
   "parser": "typescript-eslint-parser",
   "rules": {
     "no-plusplus": 0,
