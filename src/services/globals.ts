@@ -98,6 +98,6 @@ export function getLanguage(id: number | string) {
     return globals.languages.find(lang => lang.id === id);
   }
   return globals.languages.find(lang => lang.name === id);
- }
+}
 
 export default globals;

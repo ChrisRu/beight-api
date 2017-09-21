@@ -64,7 +64,8 @@ export class Logger {
    * @param type Type of the log
    */
   private log(message: string, type = 'info'): void {
-    console.log( // eslint-disable-line no-console
+    // eslint-disable-next-line no-console
+    console.log(
       `${Logger.getTime()} [${this.title}] ${Logger.chalkMessage(
         type,
         message
@@ -79,7 +80,8 @@ export class Logger {
    * @param type Type of the log
    */
   private static log(title: string, message: string, type = 'info'): void {
-    console.log( // eslint-disable-line no-console
+    // eslint-disable-next-line no-console
+    console.log(
       `${this.getTime()} [${Logger.chalkTitle(title)}] ${this.chalkMessage(
         type,
         message

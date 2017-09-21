@@ -11,9 +11,10 @@ const logger = new Logger('auth');
  * @returns Local strategy
  */
 function getStrategy() {
+  const query = 'SELECT * FROM account WHERE LOWER(username) = LOWER($1)';
   return new Strategy(async (username, password, done) =>
     database
-      .query('SELECT * FROM account WHERE LOWER(username) = LOWER($1)', [username])
+      .query(query, [username])
       .then(async data => {
         const user = data.rows[0];
 
